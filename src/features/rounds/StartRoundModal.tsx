@@ -85,16 +85,16 @@ export const StartRoundModal: React.FC<StartRoundModalProps> = ({
               type="button"
               disabled={starting}
               onClick={() => handleSelect('cleaning')}
-              className="p-4 rounded-2xl border-2 border-teal-200 bg-teal-50/50 hover:bg-teal-100/70 hover:border-teal-400 active:scale-[0.98] transition-all text-right group cursor-pointer"
+              className="p-4 rounded-2xl border-2 border-cyan-200 bg-cyan-50/50 hover:bg-cyan-100/70 hover:border-cyan-400 active:scale-[0.98] transition-all text-right group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center mb-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center mb-3 shadow-xs">
                 <Sparkles className="w-5 h-5" />
               </div>
               <h4 className="font-extrabold text-slate-900 text-base mb-1">جولة نظافة</h4>
               <p className="text-xs text-slate-600 leading-relaxed">
                 نظافة عامة، تعقيم، إدارة نفايات وسلامة بيئية
               </p>
-              <div className="mt-3 flex items-center gap-1 text-xs font-bold text-teal-700">
+              <div className="mt-3 flex items-center gap-1 text-xs font-bold text-cyan-700">
                 <span>ابدأ الآن</span>
                 <ArrowLeft className="w-3.5 h-3.5 transform group-hover:-translate-x-1 transition-transform" />
               </div>
