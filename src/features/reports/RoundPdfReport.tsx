@@ -46,7 +46,7 @@ export const RoundPdfReport: React.FC<RoundPdfReportProps> = ({
         {/* Floating Action Header on screen (hidden in print) */}
         <div className="no-print px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Printer className="w-5 h-5 text-emerald-400" />
+            <Printer className="w-5 h-5 text-sky-400" />
             <div>
               <h3 className="font-bold text-sm">معاينة التقرير الرسمي للجولة</h3>
               <p className="text-[11px] text-slate-400">جاهز للتصدير والطباعة بتنسيق A4 المعتمد</p>
@@ -55,7 +55,7 @@ export const RoundPdfReport: React.FC<RoundPdfReportProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="py-2 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+              className="py-2 px-4 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>طباعة / حفظ كـ PDF</span>
@@ -77,7 +77,7 @@ export const RoundPdfReport: React.FC<RoundPdfReportProps> = ({
               <div className="border-b-2 border-slate-800 pb-4 mb-5">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-xl border-2 border-emerald-700 bg-emerald-50 text-emerald-800 flex items-center justify-center shadow-xs">
+                    <div className="w-14 h-14 rounded-xl border-2 border-sky-700 bg-sky-50 text-sky-800 flex items-center justify-center shadow-xs">
                       <Building2 className="w-8 h-8" />
                     </div>
                     <div>
@@ -87,7 +87,7 @@ export const RoundPdfReport: React.FC<RoundPdfReportProps> = ({
                       <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">
                         تقرير جولة الصيانة الميدانية
                       </h1>
-                      <p className="text-xs font-bold text-emerald-700 mt-0.5">
+                      <p className="text-xs font-bold text-sky-700 mt-0.5">
                         {getRoundTypeLabel(round.type)}
                       </p>
                     </div>
@@ -109,7 +109,7 @@ export const RoundPdfReport: React.FC<RoundPdfReportProps> = ({
                       حالة الجولة:{' '}
                       <span
                         className={`font-bold ${
-                          round.status === 'completed' ? 'text-emerald-700' : 'text-amber-700'
+                          round.status === 'completed' ? 'text-sky-700' : 'text-amber-700'
                         }`}
                       >
                         {round.status === 'completed' ? 'جولة مكتملة ومعتمدة' : 'جولة قيد التنفيذ'}
@@ -158,9 +158,9 @@ export const RoundPdfReport: React.FC<RoundPdfReportProps> = ({
                   <span className="text-[11px] text-slate-500 font-semibold block">إجمالي الملاحظات</span>
                   <span className="text-lg font-black text-slate-900">{observations.length}</span>
                 </div>
-                <div className="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/50">
-                  <span className="text-[11px] text-emerald-800 font-semibold block">تمت المعالجة</span>
-                  <span className="text-lg font-black text-emerald-900">{resolvedCount}</span>
+                <div className="p-2.5 rounded-lg border border-sky-200 bg-sky-50/50">
+                  <span className="text-[11px] text-sky-800 font-semibold block">تمت المعالجة</span>
+                  <span className="text-lg font-black text-sky-900">{resolvedCount}</span>
                 </div>
                 <div className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/50">
                   <span className="text-[11px] text-amber-800 font-semibold block">مفتوحة للمتابعة</span>
@@ -170,7 +170,7 @@ export const RoundPdfReport: React.FC<RoundPdfReportProps> = ({
 
               {/* Table of Observations */}
               <div className="mb-6">
-                <h3 className="text-xs font-bold text-slate-800 mb-2 border-r-2 border-emerald-600 pr-2">
+                <h3 className="text-xs font-bold text-slate-800 mb-2 border-r-2 border-sky-600 pr-2">
                   جدول الملاحظات الميدانية المسجلة ({observations.length})
                 </h3>
 
@@ -218,7 +218,7 @@ export const RoundPdfReport: React.FC<RoundPdfReportProps> = ({
                               </td>
                               <td className="p-2 border border-slate-300 text-center">
                                 {isResolved ? (
-                                  <div className="text-emerald-800">
+                                  <div className="text-sky-800">
                                     <span className="font-bold text-[11px] block">تمت المعالجة</span>
                                     <span className="text-[10px] text-slate-500 block">
                                       بواسطة: {obs.resolvedByName || 'المشرف'}
