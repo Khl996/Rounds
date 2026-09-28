@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/firebase/firebase-tools/master/schema/firestore-blueprint.json",
+  "entities": {
+    "User": {
+      "collection": "users",
+      "fields": {
+        "id": { "type": "string", "description": "Auth UID" },
+        "fullName": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "description": "Email address" },
+        "role": { "type": "string", "enum": ["admin", "supervisor"], "description": "Role in the system" },
+        "active": { "type": "boolean", "description": "Whether user is active" },
+        "createdAt": { "type": "timestamp", "description": "Creation timestamp" }
+      }
+    },
+    "Location": {
+      "collection": "locations",
+      "fields": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "description": "Location name in Arabic" },
+        "building": { "type": "string", "description": "Building name e.g. المبنى الرئيسي" },
+        "floor": { "type": "string", "description": "Floor e.g. الدور الأرضي" },
+        "department": { "type": "string", "description": "Department" },
+        "active": { "type": "boolean" },
+        "sortOrder": { "type": "number" },
+        "createdAt": { "type": "timestamp" }
+      }
+    },
+    "Category": {
+      "collection": "categories",
+      "fields": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "description": "Category name e.g. كهرباء" },
+        "active": { "type": "boolean" },
+        "sortOrder": { "type": "number" },
+        "createdAt": { "type": "timestamp" }
+      }
+    },
+    "Round": {
+      "collection": "rounds",
+      "fields": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["maintenance", "cleaning"] },
+        "supervisorId": { "type": "string" },
+        "supervisorName": { "type": "string" },
+        "status": { "type": "string", "enum": ["in_progress", "completed"] },
+        "startedAt": { "type": "timestamp" },
+        "completedAt": { "type": "timestamp" },
+        "summary": { "type": "string" },
+        "observationCount": { "type": "number" },
+        "openCount": { "type": "number" },
+        "resolvedCount": { "type": "number" },
+        "createdAt": { "type": "timestamp" }
+      }
+    },
+    "Observation": {
+      "collection": "observations",
+      "fields": {
+        "id": { "type": "string" },
+        "roundId": { "type": "string" },
+        "locationId": { "type": "string" },
+        "locationName": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "categoryName": { "type": "string" },
+        "description": { "type": "string" },
+        "actionTaken": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "resolved"] },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "resolvedBy": { "type": "string" },
+        "resolvedByName": { "type": "string" },
+        "resolvedAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" },
+        "orderNumber": { "type": "number" }
+      }
+    },
+    "ObservationUpdate": {
+      "collection": "observationUpdates",
+      "fields": {
+        "id": { "type": "string" },
+        "observationId": { "type": "string" },
+        "type": { "type": "string", "enum": ["comment", "resolved", "reopened"] },
+        "text": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      }
+    }
+  }
+}
