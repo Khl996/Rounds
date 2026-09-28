@@ -6,7 +6,6 @@ export interface AppUser {
   id: string;
   fullName: string;
   email: string;
-  password?: string;
   role: UserRole;
   active: boolean;
   createdAt: Timestamp | Date;
@@ -36,6 +35,8 @@ export type RoundStatus = 'in_progress' | 'completed';
 
 export interface Round {
   id: string;
+  /** Human-readable, permanent round number, e.g. RND-20260928-A4F2. Missing on rounds created before it existed. */
+  roundCode?: string;
   type: RoundType;
   supervisorId: string;
   supervisorName: string;

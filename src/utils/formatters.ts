@@ -1,4 +1,13 @@
 import { Timestamp } from 'firebase/firestore';
+import { ObservationStatus, RoundStatus, RoundType } from '../types';
+
+// Gregorian calendar with Latin digits: matches printed reports and the round code.
+const LOCALE = 'ar-SA-u-ca-gregory-nu-latn';
+
+const timeFormat = new Intl.DateTimeFormat(LOCALE, { hour: 'numeric', minute: '2-digit', hour12: true });
+const dayMonthFormat = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long' });
+const fullDateFormat = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' });
+const weekdayFormat = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
 
 export function toDate(val: unknown): Date | null {
   if (!val) return null;
@@ -16,101 +25,165 @@ export function toDate(val: unknown): Date | null {
   return null;
 }
 
-export function formatDateArabic(val: unknown): string {
-  const d = toDate(val);
-  if (!d) return '—';
-  return new Intl.DateTimeFormat('ar-SA', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(d);
+export function toMillis(val: unknown): number {
+  return toDate(val)?.getTime() ?? 0;
 }
 
-export function formatShortDate(val: unknown): string {
-  const d = toDate(val);
-  if (!d) return '—';
-  return new Intl.DateTimeFormat('ar-SA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(d);
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-export function formatTimeArabic(val: unknown): string {
+/** 8:12 ص */
+export function formatTime(val: unknown): string {
   const d = toDate(val);
-  if (!d) return '—';
-  return new Intl.DateTimeFormat('ar-SA', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  }).format(d);
+  return d ? timeFormat.format(d) : '—';
 }
 
-export function formatDateTimeArabic(val: unknown): string {
+/** 28 سبتمبر 2026 */
+export function formatDate(val: unknown): string {
   const d = toDate(val);
-  if (!d) return '—';
-  return `${formatDateArabic(d)} - ${formatTimeArabic(d)}`;
+  return d ? fullDateFormat.format(d) : '—';
 }
 
-export function calculateDurationString(startVal: unknown, endVal?: unknown): string {
+/** 28/09/2026 */
+export function formatNumericDate(val: unknown): string {
+  const d = toDate(val);
+  if (!d) return '—';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+/** اليوم / أمس / الاثنين، 28 سبتمبر (with the year when it is not the current one). */
+export function formatDayLabel(val: unknown, withWeekday = true): string {
+  const d = toDate(val);
+  if (!d) return '—';
+  const now = new Date();
+  if (isSameDay(d, now)) return 'اليوم';
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (isSameDay(d, yesterday)) return 'أمس';
+  if (d.getFullYear() !== now.getFullYear()) return fullDateFormat.format(d);
+  return (withWeekday ? weekdayFormat : dayMonthFormat).format(d);
+}
+
+/** Time only for today, otherwise "28 سبتمبر، 8:12 ص". */
+export function formatWhen(val: unknown): string {
+  const d = toDate(val);
+  if (!d) return '—';
+  if (isSameDay(d, new Date())) return timeFormat.format(d);
+  const day = d.getFullYear() === new Date().getFullYear() ? dayMonthFormat.format(d) : fullDateFormat.format(d);
+  return `${day}، ${timeFormat.format(d)}`;
+}
+
+/** Stable key for grouping items by calendar day. */
+export function dayKey(val: unknown): string {
+  const d = toDate(val);
+  return d ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` : 'unknown';
+}
+
+interface CountForms {
+  zero?: string;
+  one: string;
+  two: string;
+  few: string;
+  many: string;
+}
+
+/** Arabic count agreement: ملاحظة واحدة، ملاحظتان، 3 ملاحظات، 11 ملاحظة. */
+export function formatCount(n: number, forms: CountForms): string {
+  if (n === 0 && forms.zero) return forms.zero;
+  if (n === 1) return forms.one;
+  if (n === 2) return forms.two;
+  const lastTwo = n % 100;
+  if (lastTwo >= 3 && lastTwo <= 10) return `${n} ${forms.few}`;
+  return `${n} ${forms.many}`;
+}
+
+export const OBSERVATION_FORMS: CountForms = {
+  zero: 'لا ملاحظات',
+  one: 'ملاحظة واحدة',
+  two: 'ملاحظتان',
+  few: 'ملاحظات',
+  many: 'ملاحظة',
+};
+
+export function formatObservationCount(n: number): string {
+  return formatCount(n, OBSERVATION_FORMS);
+}
+
+const MINUTE_FORMS: CountForms = { one: 'دقيقة', two: 'دقيقتان', few: 'دقائق', many: 'دقيقة' };
+const HOUR_FORMS: CountForms = { one: 'ساعة', two: 'ساعتان', few: 'ساعات', many: 'ساعة' };
+// After "منذ" the dual takes the genitive form.
+const MINUTE_FORMS_AFTER_SINCE: CountForms = { ...MINUTE_FORMS, two: 'دقيقتين' };
+const HOUR_FORMS_AFTER_SINCE: CountForms = { ...HOUR_FORMS, two: 'ساعتين' };
+
+function minutesBetween(startVal: unknown, endVal?: unknown): number | null {
   const start = toDate(startVal);
-  if (!start) return '—';
+  if (!start) return null;
   const end = toDate(endVal) || new Date();
-  const diffMs = Math.max(0, end.getTime() - start.getTime());
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  
-  if (diffMinutes < 1) {
-    return 'أقل من دقيقة';
-  }
-  
-  const hours = Math.floor(diffMinutes / 60);
-  const minutes = diffMinutes % 60;
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60000));
+}
 
-  if (hours === 0) {
-    return `${diffMinutes} دقيقة`;
-  }
-  if (hours === 1) {
-    return minutes > 0 ? `ساعة و ${minutes} دقيقة` : 'ساعة واحدة';
-  }
-  if (hours === 2) {
-    return minutes > 0 ? `ساعتان و ${minutes} دقيقة` : 'ساعتان';
-  }
-  if (hours <= 10) {
-    return minutes > 0 ? `${hours} ساعات و ${minutes} دقيقة` : `${hours} ساعات`;
-  }
-  return minutes > 0 ? `${hours} ساعة و ${minutes} دقيقة` : `${hours} ساعة`;
+function durationText(totalMinutes: number, minuteForms: CountForms, hourForms: CountForms): string {
+  if (totalMinutes < 1) return 'أقل من دقيقة';
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return formatCount(minutes, minuteForms);
+  const hoursText = formatCount(hours, hourForms);
+  return minutes > 0 ? `${hoursText} و${formatCount(minutes, minuteForms)}` : hoursText;
+}
+
+/** 35 دقيقة، ساعة و10 دقائق */
+export function formatDuration(startVal: unknown, endVal?: unknown): string {
+  const minutes = minutesBetween(startVal, endVal);
+  return minutes === null ? '—' : durationText(minutes, MINUTE_FORMS, HOUR_FORMS);
+}
+
+/** منذ 24 دقيقة */
+export function formatElapsed(startVal: unknown, now: number = Date.now()): string {
+  const minutes = minutesBetween(startVal, now);
+  if (minutes === null) return '';
+  if (minutes < 1) return 'بدأت الآن';
+  return `منذ ${durationText(minutes, MINUTE_FORMS_AFTER_SINCE, HOUR_FORMS_AFTER_SINCE)}`;
 }
 
 export function calculateDurationMinutes(startVal: unknown, endVal?: unknown): number {
-  const start = toDate(startVal);
-  if (!start) return 0;
-  const end = toDate(endVal) || new Date();
-  const diffMs = Math.max(0, end.getTime() - start.getTime());
-  return Math.floor(diffMs / (1000 * 60));
+  return minutesBetween(startVal, endVal) ?? 0;
 }
 
-export function getRoundTypeLabel(type: 'maintenance' | 'cleaning'): string {
-  return type === 'maintenance' ? 'جولة صيانة' : 'جولة نظافة';
+export const ROUND_TYPE_LABEL: Record<RoundType, string> = {
+  maintenance: 'صيانة',
+  cleaning: 'نظافة',
+};
+
+export function roundTitle(type: RoundType): string {
+  return `جولة ${ROUND_TYPE_LABEL[type] ?? ''}`.trim();
 }
 
-export function getStatusLabel(status: 'open' | 'resolved' | 'in_progress' | 'completed'): string {
-  switch (status) {
-    case 'open':
-      return 'مفتوحة';
-    case 'resolved':
-      return 'تمت المعالجة';
-    case 'in_progress':
-      return 'قيد التنفيذ';
-    case 'completed':
-      return 'مكتملة';
-    default:
-      return status;
-  }
+export const ROUND_STATUS_LABEL: Record<RoundStatus, string> = {
+  in_progress: 'جارية',
+  completed: 'مكتملة',
+};
+
+export const OBSERVATION_STATUS_LABEL: Record<ObservationStatus, string> = {
+  open: 'مفتوحة',
+  resolved: 'مغلقة',
+};
+
+export function greeting(now: Date = new Date()): string {
+  return now.getHours() < 12 ? 'صباح الخير' : 'مساء الخير';
 }
 
-export function generateReportFilename(roundId: string, type: string, supervisorName: string, dateVal: unknown): string {
-  const d = toDate(dateVal) || new Date();
-  const dateStr = d.toISOString().split('T')[0];
-  const cleanSupervisor = supervisorName.trim().replace(/\s+/g, '_');
-  return `round-${type}-${dateStr}-${cleanSupervisor}-${roundId.slice(0, 5)}.pdf`;
+/** Loose Arabic matching for search: ignores diacritics and common letter variants. */
+export function normalizeArabic(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[ً-ٰٟـ]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/[ىئ]/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ء/g, '')
+    .replace(/ة/g, 'ه')
+    .trim();
 }

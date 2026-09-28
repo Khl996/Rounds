@@ -8,7 +8,20 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
+      },
+    },
+    build: {
+      rolldownOptions: {
+        output: {
+          // Firebase is most of the bundle; keep it in separate long-cached chunks.
+          codeSplitting: {
+            groups: [
+              { name: 'firestore', test: /node_modules[\\/]@firebase[\\/](firestore|webchannel-wrapper)/ },
+              { name: 'firebase', test: /node_modules[\\/]@?firebase/ },
+            ],
+          },
+        },
       },
     },
     server: {

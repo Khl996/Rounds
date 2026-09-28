@@ -1,46 +1,52 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    font-family: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
+  }
+}
+
+/* Sheets and toasts: a short, calm entrance. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.sheet-panel {
+  animation: sheet-up 180ms ease-out;
+}
+
+.sheet-backdrop,
+.toast-enter {
+  animation: fade-in 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel,
+  .sheet-backdrop,
+  .toast-enter {
+    animation: none;
   }
 }
 
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 12mm 15mm 15mm 15mm;
-  }
-
-  body {
-    background-color: #ffffff !important;
-    color: #0f172a !important;
-    font-size: 11pt;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
   .no-print {
-    display: none !important;
-  }
-
-  .print-only {
-    display: block !important;
-  }
-
-  .page-break-inside-avoid {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  .page-break-before-always {
-    break-before: page;
-    page-break-before: always;
-  }
-}
-
-@media screen {
-  .print-only {
     display: none !important;
   }
 }

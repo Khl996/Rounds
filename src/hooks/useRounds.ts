@@ -4,7 +4,10 @@ import {
   onSnapshot,
   query,
   orderBy,
-  addDoc,
+  where,
+  limit,
+  getDocs,
+  setDoc,
   updateDoc,
   doc,
   serverTimestamp,
@@ -13,18 +16,17 @@ import { db } from '../firebase/config';
 import { Round, RoundType } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateDurationMinutes } from '../utils/formatters';
+import { buildRoundCode } from '../utils/roundCode';
 
 export function useRounds() {
   const { appUser } = useAuth();
   const [rounds, setRounds] = useState<Round[]>([]);
-  const [activeRound, setActiveRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!appUser) {
       setRounds([]);
-      setActiveRound(null);
       setLoading(false);
       setError(null);
       return;
@@ -37,24 +39,18 @@ export function useRounds() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const list: Round[] = snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...(docSnap.data() as Omit<Round, 'id'>),
-        }));
-
-        setRounds(list);
-        const myActive = list.find(
-          (r) => r.status === 'in_progress' &&
-            (r.supervisorId === appUser.id || appUser.role === 'admin')
+        setRounds(
+          snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...(docSnap.data({ serverTimestamps: 'estimate' }) as Omit<Round, 'id'>),
+          }))
         );
-        setActiveRound(myActive || null);
         setLoading(false);
       },
       (firestoreError) => {
         console.error('Rounds subscription failed:', firestoreError);
-        setError('تعذر تحميل الجولات من قاعدة البيانات.');
+        setError('تعذر تحميل الجولات.');
         setRounds([]);
-        setActiveRound(null);
         setLoading(false);
       }
     );
@@ -62,47 +58,61 @@ export function useRounds() {
     return () => unsubscribe();
   }, [appUser]);
 
-  const startRound = async (type: RoundType): Promise<string> => {
-    if (!appUser) throw new Error('يجب تسجيل الدخول لبدء جولة');
+  // Only the signed-in user's own round counts as "their" active round.
+  const activeRound =
+    (appUser && rounds.find((r) => r.status === 'in_progress' && r.supervisorId === appUser.id)) || null;
 
-    const payload = {
-      type,
-      supervisorId: appUser.id,
-      supervisorName: appUser.fullName,
-      status: 'in_progress' as const,
-      startedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      observationCount: 0,
-      openCount: 0,
-      resolvedCount: 0,
-      summary: '',
-    };
+  const startRound = async (type: RoundType): Promise<string> => {
+    if (!appUser) throw new Error('سجّل الدخول أولًا.');
+    if (activeRound) return activeRound.id;
+
+    const now = new Date();
 
     try {
-      const ref = await addDoc(collection(db, 'rounds'), payload);
-      return ref.id;
+      // The code is derived from the new document ID; re-roll the ID in the unlikely case the code is taken.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const ref = doc(collection(db, 'rounds'));
+        const roundCode = buildRoundCode(now, ref.id);
+        const clash = await getDocs(
+          query(collection(db, 'rounds'), where('roundCode', '==', roundCode), limit(1))
+        );
+        if (!clash.empty) continue;
+
+        await setDoc(ref, {
+          roundCode,
+          type,
+          supervisorId: appUser.id,
+          supervisorName: appUser.fullName,
+          status: 'in_progress',
+          startedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+          observationCount: 0,
+          openCount: 0,
+          resolvedCount: 0,
+          summary: '',
+        });
+        return ref.id;
+      }
     } catch (writeError) {
       console.error('Start round failed:', writeError);
-      throw new Error('تعذر بدء الجولة وحفظها في قاعدة البيانات.');
     }
+    throw new Error('تعذر بدء الجولة. تحقق من الاتصال وحاول مرة أخرى.');
   };
 
   const finishRound = async (roundId: string, summary?: string): Promise<void> => {
-    const targetRound = rounds.find((r) => r.id === roundId) || activeRound;
+    const targetRound = rounds.find((r) => r.id === roundId);
     if (!targetRound) throw new Error('تعذر العثور على الجولة.');
-
-    const duration = calculateDurationMinutes(targetRound.startedAt, new Date());
 
     try {
       await updateDoc(doc(db, 'rounds', roundId), {
         status: 'completed',
         completedAt: serverTimestamp(),
-        durationMinutes: duration,
+        durationMinutes: calculateDurationMinutes(targetRound.startedAt, new Date()),
         summary: summary?.trim() || '',
       });
     } catch (writeError) {
       console.error('Finish round failed:', writeError);
-      throw new Error('تعذر إنهاء الجولة وحفظها في قاعدة البيانات.');
+      throw new Error('تعذر إنهاء الجولة. تحقق من الاتصال وحاول مرة أخرى.');
     }
   };
 

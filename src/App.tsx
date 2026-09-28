@@ -3,170 +3,200 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { ClipboardCheck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useRounds } from './hooks/useRounds';
 import { useObservations } from './hooks/useObservations';
+import { useMasterData } from './hooks/useMasterData';
+import { useBackClose } from './hooks/useBackClose';
+import { ToastProvider, useToast } from './components/ui/Toast';
 import { Header } from './components/layout/Header';
-import { Navbar, NavTab } from './components/layout/Navbar';
+import { BottomNav, NavTab, getNavItems } from './components/layout/Navbar';
 import { AuthView } from './features/auth/AuthView';
-import { DashboardView } from './features/dashboard/DashboardView';
+import { HomeView } from './features/home/HomeView';
 import { ActiveRoundView } from './features/rounds/ActiveRoundView';
 import { RoundDetailsView } from './features/rounds/RoundDetailsView';
-import { StartRoundModal } from './features/rounds/StartRoundModal';
-import { ObservationsListView } from './features/observations/ObservationsListView';
-import { ObservationDetailModal } from './features/observations/ObservationDetailModal';
+import { StartRoundSheet } from './features/rounds/StartRoundSheet';
+import { ObservationsView } from './features/observations/ObservationsView';
+import { ObservationSheet } from './features/observations/ObservationSheet';
 import { AdminManagementView } from './features/admin/AdminManagementView';
-import { Round, Observation, RoundType } from './types';
-import { ClipboardCheck } from 'lucide-react';
+import { AppUser, RoundType } from './types';
+import { groupByRound } from './utils/observations';
 
-function AppContent() {
-  const { appUser, loading: authLoading, isAdmin } = useAuth();
-  const { rounds, activeRound, startRound, finishRound } = useRounds();
-  const { observations, loading: obsLoading } = useObservations();
+/** A screen pushed on top of the tabs. */
+type Screen = { kind: 'activeRound' } | { kind: 'round'; roundId: string } | null;
 
-  const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
-  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
-  const [selectedRound, setSelectedRound] = useState<Round | null>(null);
-  const [selectedObservation, setSelectedObservation] = useState<Observation | null>(null);
-  const [viewingActiveRound, setViewingActiveRound] = useState(false);
+function AuthenticatedApp({ user }: { user: AppUser }) {
+  const { isAdmin, logout } = useAuth();
+  const { rounds, activeRound, loading: roundsLoading, error: roundsError, startRound, finishRound } = useRounds();
+  const {
+    observations,
+    loading: observationsLoading,
+    error: observationsError,
+    addObservation,
+    resolveObservation,
+    reopenObservation,
+    addComment,
+  } = useObservations();
+  const master = useMasterData();
+  const showToast = useToast();
 
-  // If auth is still checking
-  if (authLoading) {
+  const [tab, setTab] = useState<NavTab>('home');
+  const [screen, setScreen] = useState<Screen>(null);
+  const [startOpen, setStartOpen] = useState(false);
+  const [observationId, setObservationId] = useState<string | null>(null);
+
+  useBackClose(screen !== null, () => setScreen(null));
+
+  const byRound = useMemo(() => groupByRound(observations), [observations]);
+  const openCount = useMemo(() => observations.filter((o) => o.status === 'open').length, [observations]);
+  const navItems = getNavItems(isAdmin, openCount);
+
+  const screenKey = screen?.kind === 'round' ? screen.roundId : screen?.kind;
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [tab, screenKey]);
+
+  // The round was finished elsewhere (another device): leave focus mode.
+  useEffect(() => {
+    if (screen?.kind === 'activeRound' && !roundsLoading && !activeRound) setScreen(null);
+  }, [screen, roundsLoading, activeRound]);
+
+  const roundObservations = (roundId: string) => byRound.get(roundId)?.list ?? [];
+  const openedObservation = observationId ? observations.find((o) => o.id === observationId) ?? null : null;
+  const openedRound = screen?.kind === 'round' ? rounds.find((r) => r.id === screen.roundId) ?? null : null;
+
+  const changeTab = (next: NavTab) => {
+    setTab(next);
+    setScreen(null);
+  };
+
+  const resumeRound = () => setScreen({ kind: 'activeRound' });
+
+  const handleStart = async (type: RoundType) => {
+    await startRound(type);
+    setStartOpen(false);
+    setScreen({ kind: 'activeRound' });
+  };
+
+  const handleFinish = async (summary?: string) => {
+    if (!activeRound) return;
+    const roundId = activeRound.id;
+    await finishRound(roundId, summary);
+    setScreen({ kind: 'round', roundId });
+    showToast('انتهت الجولة');
+  };
+
+  const observationSheet = openedObservation && (
+    <ObservationSheet
+      key={openedObservation.id}
+      observation={openedObservation}
+      onClose={() => setObservationId(null)}
+      onComment={(text) => addComment(openedObservation.id, text)}
+      onResolve={(note) => resolveObservation(openedObservation, note)}
+      onReopen={(reason) => reopenObservation(openedObservation, reason)}
+    />
+  );
+
+  if (screen?.kind === 'activeRound' && activeRound) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-12 h-12 rounded-2xl bg-sky-600 flex items-center justify-center text-white shadow-xs mb-3">
-          <ClipboardCheck className="w-6 h-6" />
-        </div>
-        <p className="text-sm font-bold text-slate-800">جولات الصيانة</p>
-      </div>
+      <>
+        <ActiveRoundView
+          round={activeRound}
+          observations={roundObservations(activeRound.id)}
+          locations={master.activeLocations}
+          categories={master.activeCategories}
+          onAddObservation={async (location, category, description, actionTaken) => {
+            await addObservation(activeRound.id, location, category, description, actionTaken);
+          }}
+          onFinish={handleFinish}
+          onOpenObservation={setObservationId}
+          onBack={() => setScreen(null)}
+        />
+        {observationSheet}
+      </>
     );
   }
 
-  // If user is not logged in
-  if (!appUser) {
-    return <AuthView />;
-  }
-
-  const handleStartRound = async (type: RoundType) => {
-    await startRound(type);
-    setIsStartModalOpen(false);
-    setViewingActiveRound(true);
-    setSelectedRound(null);
-  };
-
-  const handleFinishRound = async (summary?: string) => {
-    if (!activeRound) return;
-    await finishRound(activeRound.id, summary);
-    setViewingActiveRound(false);
-    const finished: Round = {
-      ...activeRound,
-      status: 'completed',
-      summary: summary || '',
-      completedAt: new Date(),
-    };
-    setSelectedRound(finished);
-  };
-
-  const openCount = observations.filter((o) => o.status === 'open').length;
+  const showResume = !!activeRound && (tab !== 'home' || (!!openedRound && openedRound.id !== activeRound.id));
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Top Header */}
+    <div className="min-h-dvh bg-slate-50">
       <Header
-        activeRound={activeRound}
-        onNavigateToActiveRound={() => {
-          setViewingActiveRound(true);
-          setSelectedRound(null);
-        }}
-        currentTab={currentTab}
+        user={user}
+        navItems={navItems}
+        currentTab={tab}
+        onTabChange={changeTab}
+        onResumeRound={showResume ? resumeRound : undefined}
+        onLogout={logout}
       />
 
-      {/* Navigation Tabs (الرئيسية / الملاحظات / الإدارة) */}
-      <Navbar
-        currentTab={currentTab}
-        onTabChange={(tab) => {
-          setCurrentTab(tab);
-          setViewingActiveRound(false);
-          setSelectedRound(null);
-        }}
-        openObservationsCount={openCount}
-      />
-
-      {/* Main Content Area */}
-      <main className="flex-1">
-        {viewingActiveRound && activeRound ? (
-          <ActiveRoundView
-            round={activeRound}
-            onFinishRound={handleFinishRound}
-            onObservationClick={(obs) => setSelectedObservation(obs)}
-            onBackToDashboard={() => setViewingActiveRound(false)}
-          />
-        ) : selectedRound ? (
+      <main>
+        {openedRound ? (
           <RoundDetailsView
-            round={selectedRound}
-            onBack={() => setSelectedRound(null)}
-            onObservationClick={(obs) => setSelectedObservation(obs)}
-            onContinueRound={
-              selectedRound.id === activeRound?.id
-                ? () => {
-                    setViewingActiveRound(true);
-                    setSelectedRound(null);
-                  }
-                : undefined
-            }
+            round={openedRound}
+            observations={roundObservations(openedRound.id)}
+            onBack={() => setScreen(null)}
+            onOpenObservation={setObservationId}
+            onContinue={openedRound.id === activeRound?.id ? resumeRound : undefined}
           />
-        ) : currentTab === 'dashboard' ? (
-          <DashboardView
-            rounds={rounds}
+        ) : tab === 'observations' ? (
+          <ObservationsView
             observations={observations}
-            activeRound={activeRound}
-            onStartRoundClick={() => setIsStartModalOpen(true)}
-            onResumeActiveRound={() => setViewingActiveRound(true)}
-            onSelectRound={(r) => setSelectedRound(r)}
-            onNavigateToObservations={() => setCurrentTab('observations')}
+            loading={observationsLoading}
+            error={observationsError}
+            onOpenObservation={setObservationId}
           />
-        ) : currentTab === 'observations' ? (
-          <ObservationsListView
-            observations={observations}
-            loading={obsLoading}
-            onSelectObservation={(obs) => setSelectedObservation(obs)}
-          />
-        ) : currentTab === 'admin' && isAdmin ? (
-          <AdminManagementView />
+        ) : tab === 'admin' && isAdmin ? (
+          <AdminManagementView master={master} />
         ) : (
-          <DashboardView
-            rounds={rounds}
-            observations={observations}
+          <HomeView
+            user={user}
+            loading={roundsLoading}
+            error={roundsError}
             activeRound={activeRound}
-            onStartRoundClick={() => setIsStartModalOpen(true)}
-            onResumeActiveRound={() => setViewingActiveRound(true)}
-            onSelectRound={(r) => setSelectedRound(r)}
-            onNavigateToObservations={() => setCurrentTab('observations')}
+            rounds={rounds}
+            countsByRound={byRound}
+            openObservationCount={openCount}
+            onStartRound={() => setStartOpen(true)}
+            onResumeRound={resumeRound}
+            onOpenRound={(roundId) => setScreen({ kind: 'round', roundId })}
+            onOpenObservations={() => changeTab('observations')}
           />
         )}
       </main>
 
-      {/* Start Round Modal */}
-      <StartRoundModal
-        isOpen={isStartModalOpen}
-        onClose={() => setIsStartModalOpen(false)}
-        onStart={handleStartRound}
-      />
+      <BottomNav items={navItems} currentTab={tab} onTabChange={changeTab} />
 
-      {/* Observation Detail / Resolution Modal */}
-      <ObservationDetailModal
-        observation={selectedObservation}
-        onClose={() => setSelectedObservation(null)}
-      />
+      {startOpen && <StartRoundSheet onClose={() => setStartOpen(false)} onStart={handleStart} />}
+      {observationSheet}
     </div>
   );
+}
+
+function AppContent() {
+  const { appUser, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+        <span className="grid size-14 place-items-center rounded-2xl bg-sky-600 text-white">
+          <ClipboardCheck className="size-7" />
+        </span>
+      </div>
+    );
+  }
+
+  return appUser ? <AuthenticatedApp user={appUser} /> : <AuthView />;
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }

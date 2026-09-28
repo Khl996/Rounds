@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { ClipboardCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ClipboardCheck, LogIn, AlertCircle } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
+import { ErrorText, Field, inputClass } from '../../components/ui/Field';
 
 export const AuthView: React.FC = () => {
   const { login, error, clearError } = useAuth();
@@ -14,8 +16,8 @@ export const AuthView: React.FC = () => {
     clearError();
     setLocalError(null);
 
-    if (!email || !password) {
-      setLocalError('يرجى إدخال البريد الإلكتروني وكلمة المرور.');
+    if (!email.trim() || !password) {
+      setLocalError('أدخل البريد وكلمة المرور.');
       return;
     }
 
@@ -23,74 +25,55 @@ export const AuthView: React.FC = () => {
     try {
       await login(email, password);
     } catch {
-      // handled by AuthContext
+      // The message is shown from AuthContext.
     } finally {
       setSubmitting(false);
     }
   };
 
+  const message = localError || error;
+
   return (
-    <div className="min-h-screen bg-sky-50 flex flex-col justify-center items-center px-4 py-8">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-6">
-          <div className="inline-flex w-16 h-16 rounded-2xl bg-sky-500 items-center justify-center text-white shadow-md mb-3">
-            <ClipboardCheck className="w-10 h-10" />
-          </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">الجولات الإشرافية</h1>
-          <p className="text-xs text-slate-500 mt-1">نظام داخلي مرتبط بـ Firebase</p>
+    <div className="flex min-h-dvh flex-col justify-center bg-slate-50 px-4 py-10">
+      <div className="mx-auto w-full max-w-sm">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <span className="grid size-14 place-items-center rounded-2xl bg-sky-600 text-white">
+            <ClipboardCheck className="size-7" />
+          </span>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">الجولات الإشرافية</h1>
         </div>
 
-        <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6 sm:p-8">
-          <div className="mb-6 pb-3 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900">تسجيل الدخول</h2>
-            <span className="text-xs text-slate-400 font-medium">حساب مصرح فقط</span>
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
+          <Field label="البريد الإلكتروني">
+            <input
+              type="email"
+              autoComplete="username"
+              inputMode="email"
+              dir="ltr"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@hospital.sa"
+              className={`${inputClass} text-left`}
+            />
+          </Field>
 
-          {(error || localError) && (
-            <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div className="leading-relaxed">{localError || error}</div>
-            </div>
-          )}
+          <Field label="كلمة المرور">
+            <input
+              type="password"
+              autoComplete="current-password"
+              dir="ltr"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`${inputClass} text-left`}
+            />
+          </Field>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">البريد الإلكتروني</label>
-              <input
-                type="email"
-                autoComplete="username"
-                required
-                dir="ltr"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@hospital.sa"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm text-left focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors"
-              />
-            </div>
+          {message && <ErrorText>{message}</ErrorText>}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">كلمة المرور</label>
-              <input
-                type="password"
-                autoComplete="current-password"
-                required
-                dir="ltr"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm text-left focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full mt-2 py-3 px-4 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {submitting ? 'جاري التحقق...' : <><LogIn className="w-4 h-4" /><span>تسجيل الدخول</span></>}
-            </button>
-          </form>
-        </div>
+          <Button type="submit" size="lg" full disabled={submitting}>
+            {submitting ? 'جارٍ الدخول…' : 'دخول'}
+          </Button>
+        </form>
       </div>
     </div>
   );
