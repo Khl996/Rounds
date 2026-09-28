@@ -96,7 +96,7 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
 
         <button
           onClick={onStartRoundClick}
-          className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+          className="py-2.5 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
         >
           <PlayCircle className="w-4 h-4" />
           <span>بدء جولة جديدة</span>
@@ -107,10 +107,10 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs mb-6 overflow-hidden">
         <div className="p-3 sm:p-4 flex items-center justify-between border-b border-slate-100 sm:border-none">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-emerald-600" />
+            <Filter className="w-4 h-4 text-sky-600" />
             <span className="text-xs font-bold text-slate-800">تصفية وبحث الجولات</span>
             {hasActiveFilters && (
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span className="w-2 h-2 rounded-full bg-sky-500"></span>
             )}
           </div>
 
@@ -147,7 +147,7 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
               >
                 <option value="all">كافة الأنواع</option>
                 <option value="maintenance">صيانة</option>
@@ -161,7 +161,7 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
               <select
                 value={filterSupervisor}
                 onChange={(e) => setFilterSupervisor(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
               >
                 <option value="">كافة المشرفين</option>
                 {uniqueSupervisors.map((name) => (
@@ -179,7 +179,7 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
                 type="date"
                 value={filterDateFrom}
                 onChange={(e) => setFilterDateFrom(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
               />
             </div>
 
@@ -190,7 +190,7 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
                 type="date"
                 value={filterDateTo}
                 onChange={(e) => setFilterDateTo(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
               />
             </div>
           </div>
@@ -230,7 +230,7 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
                         className={`px-2.5 py-0.5 rounded-lg text-xs font-bold ${
                           round.type === 'maintenance'
                             ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-teal-50 text-teal-700 border border-teal-200'
+                            : 'bg-cyan-50 text-cyan-700 border border-cyan-200'
                         }`}
                       >
                         {getRoundTypeLabel(round.type)}
@@ -244,8 +244,8 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
                           <span>قيد التنفيذ</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                          <CheckCircle2 className="w-3 h-3 text-sky-600" />
                           <span>مكتملة</span>
                         </span>
                       )}
@@ -272,7 +272,7 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
                     </div>
                     <div>
                       <span className="text-slate-400 text-[11px] block">المدة:</span>
-                      <span className="font-extrabold text-emerald-800">
+                      <span className="font-extrabold text-sky-800">
                         {calculateDurationString(round.startedAt, round.completedAt)}
                       </span>
                     </div>
@@ -294,12 +294,12 @@ export const RoundsListView: React.FC<RoundsListViewProps> = ({
                           0 مفتوحة
                         </span>
                       )}
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 text-[11px]">
+                      <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 font-bold border border-sky-200 text-[11px]">
                         {resolvedCount} معالجة
                       </span>
                     </div>
 
-                    <span className="text-xs text-emerald-700 font-bold group-hover:underline flex items-center gap-1">
+                    <span className="text-xs text-sky-700 font-bold group-hover:underline flex items-center gap-1">
                       <span>عرض التقرير وتصدير PDF</span>
                       <span>←</span>
                     </span>
