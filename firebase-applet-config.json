@@ -3,7 +3,7 @@
   "appId": "1:190824070506:web:c880a0c39ebbd4e7d1f913",
   "apiKey": "AIzaSyA5v05oZszIiJ5RlC1AXBXv5mlo_mAhKt0",
   "authDomain": "rounds-4ec05.firebaseapp.com",
-  "firestoreDatabaseId": "default",
+  "firestoreDatabaseId": "(default)",
   "storageBucket": "rounds-4ec05.firebasestorage.app",
   "messagingSenderId": "190824070506",
   "measurementId": "G-2GYW41CW1B"
