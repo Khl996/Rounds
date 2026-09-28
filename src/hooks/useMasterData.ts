@@ -11,167 +11,126 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { LocationItem, CategoryItem } from '../types';
-import { INITIAL_LOCATIONS, INITIAL_CATEGORIES, seedInitialDataIfNeeded } from '../firebase/seed';
-
-const FALLBACK_LOCATIONS: LocationItem[] = INITIAL_LOCATIONS.map((l, idx) => ({
-  id: `loc_${idx + 1}`,
-  name: l.name,
-  building: l.building,
-  floor: l.floor,
-  department: l.department,
-  sortOrder: l.sortOrder,
-  active: true,
-}));
-
-const FALLBACK_CATEGORIES: CategoryItem[] = INITIAL_CATEGORIES.map((c, idx) => ({
-  id: `cat_${idx + 1}`,
-  name: c.name,
-  sortOrder: c.sortOrder,
-  active: true,
-}));
+import { seedInitialDataIfNeeded } from '../firebase/seed';
 
 export function useMasterData() {
-  const [locations, setLocations] = useState<LocationItem[]>(FALLBACK_LOCATIONS);
-  const [categories, setCategories] = useState<CategoryItem[]>(FALLBACK_CATEGORIES);
-  const [loading, setLoading] = useState(false);
+  const [locations, setLocations] = useState<LocationItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Try auto-seeding if empty on mount
-    seedInitialDataIfNeeded().catch(() => {});
+    setLoading(true);
+    setError(null);
 
-    try {
-      const locQ = query(collection(db, 'locations'), orderBy('sortOrder', 'asc'));
-      const catQ = query(collection(db, 'categories'), orderBy('sortOrder', 'asc'));
+    const locQ = query(collection(db, 'locations'), orderBy('sortOrder', 'asc'));
+    const catQ = query(collection(db, 'categories'), orderBy('sortOrder', 'asc'));
 
-      const unsubLoc = onSnapshot(
-        locQ,
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const list: LocationItem[] = snapshot.docs.map((docSnap) => ({
-              id: docSnap.id,
-              ...(docSnap.data() as Omit<LocationItem, 'id'>),
-            }));
-            setLocations(list);
-          }
-          setLoading(false);
-        },
-        () => {
-          // On permission / api disabled, use fallback locations
-          setLoading(false);
-        }
-      );
+    let locReady = false;
+    let catReady = false;
+    const markReady = () => {
+      if (locReady && catReady) setLoading(false);
+    };
 
-      const unsubCat = onSnapshot(
-        catQ,
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const list: CategoryItem[] = snapshot.docs.map((docSnap) => ({
-              id: docSnap.id,
-              ...(docSnap.data() as Omit<CategoryItem, 'id'>),
-            }));
-            setCategories(list);
-          }
-          setLoading(false);
-        },
-        () => {
-          setLoading(false);
-        }
-      );
+    const unsubLoc = onSnapshot(
+      locQ,
+      (snapshot) => {
+        setLocations(snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<LocationItem, 'id'>),
+        })));
+        locReady = true;
+        markReady();
+      },
+      (firestoreError) => {
+        console.error('Locations subscription failed:', firestoreError);
+        setError('تعذر تحميل المواقع من قاعدة البيانات.');
+        locReady = true;
+        markReady();
+      }
+    );
 
-      return () => {
-        unsubLoc();
-        unsubCat();
-      };
-    } catch {
-      setLoading(false);
-    }
+    const unsubCat = onSnapshot(
+      catQ,
+      (snapshot) => {
+        setCategories(snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<CategoryItem, 'id'>),
+        })));
+        catReady = true;
+        markReady();
+      },
+      (firestoreError) => {
+        console.error('Categories subscription failed:', firestoreError);
+        setError('تعذر تحميل التصنيفات من قاعدة البيانات.');
+        catReady = true;
+        markReady();
+      }
+    );
+
+    return () => {
+      unsubLoc();
+      unsubCat();
+    };
   }, []);
 
   const addLocation = async (data: Omit<LocationItem, 'id' | 'createdAt'>) => {
     try {
-      const docRef = await addDoc(collection(db, 'locations'), {
+      await addDoc(collection(db, 'locations'), {
         ...data,
         active: true,
         createdAt: serverTimestamp(),
       });
-      setLocations((prev) => [...prev, { id: docRef.id, ...data, active: true }]);
-    } catch {
-      const localId = `loc_local_${Date.now()}`;
-      setLocations((prev) => [...prev, { id: localId, ...data, active: true }]);
+    } catch (writeError) {
+      console.error('Add location failed:', writeError);
+      throw new Error('تعذر إضافة الموقع.');
     }
   };
 
   const updateLocation = async (id: string, data: Partial<LocationItem>) => {
     try {
-      const ref = doc(db, 'locations', id);
-      await updateDoc(ref, data);
-    } catch {
-      // update local
+      await updateDoc(doc(db, 'locations', id), data);
+    } catch (writeError) {
+      console.error('Update location failed:', writeError);
+      throw new Error('تعذر تحديث الموقع.');
     }
-    setLocations((prev) =>
-      prev.map((loc) => (loc.id === id ? { ...loc, ...data } : loc))
-    );
   };
 
   const toggleLocationActive = async (id: string, currentActive: boolean) => {
-    try {
-      const ref = doc(db, 'locations', id);
-      await updateDoc(ref, { active: !currentActive });
-    } catch {
-      // update local
-    }
-    setLocations((prev) =>
-      prev.map((loc) => (loc.id === id ? { ...loc, active: !currentActive } : loc))
-    );
+    await updateLocation(id, { active: !currentActive });
   };
 
   const addCategory = async (data: Omit<CategoryItem, 'id' | 'createdAt'>) => {
     try {
-      const docRef = await addDoc(collection(db, 'categories'), {
+      await addDoc(collection(db, 'categories'), {
         ...data,
         active: true,
         createdAt: serverTimestamp(),
       });
-      setCategories((prev) => [...prev, { id: docRef.id, ...data, active: true }]);
-    } catch {
-      const localId = `cat_local_${Date.now()}`;
-      setCategories((prev) => [...prev, { id: localId, ...data, active: true }]);
+    } catch (writeError) {
+      console.error('Add category failed:', writeError);
+      throw new Error('تعذر إضافة التصنيف.');
     }
   };
 
   const updateCategory = async (id: string, data: Partial<CategoryItem>) => {
     try {
-      const ref = doc(db, 'categories', id);
-      await updateDoc(ref, data);
-    } catch {
-      // update local
+      await updateDoc(doc(db, 'categories', id), data);
+    } catch (writeError) {
+      console.error('Update category failed:', writeError);
+      throw new Error('تعذر تحديث التصنيف.');
     }
-    setCategories((prev) =>
-      prev.map((cat) => (cat.id === id ? { ...cat, ...data } : cat))
-    );
   };
 
   const toggleCategoryActive = async (id: string, currentActive: boolean) => {
-    try {
-      const ref = doc(db, 'categories', id);
-      await updateDoc(ref, { active: !currentActive });
-    } catch {
-      // update local
-    }
-    setCategories((prev) =>
-      prev.map((cat) => (cat.id === id ? { ...cat, active: !currentActive } : cat))
-    );
+    await updateCategory(id, { active: !currentActive });
   };
-
-  const activeLocations = locations.filter((l) => l.active !== false);
-  const activeCategories = categories.filter((c) => c.active !== false);
 
   return {
     locations,
-    activeLocations,
+    activeLocations: locations.filter((l) => l.active !== false),
     categories,
-    activeCategories,
+    activeCategories: categories.filter((c) => c.active !== false),
     loading,
     error,
     addLocation,
