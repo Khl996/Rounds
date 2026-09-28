@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { deleteApp, initializeApp } from 'firebase/app';
 import {
-  User as FirebaseUser,
+  deleteUser,
+  getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -11,13 +13,8 @@ import {
   getDoc,
   setDoc,
   serverTimestamp,
-  collection,
-  getDocs,
-  query,
-  where,
-  limit,
 } from 'firebase/firestore';
-import { auth, db } from '../firebase/config';
+import { auth, db, getActiveFirebaseConfig } from '../firebase/config';
 import { AppUser, UserRole } from '../types';
 
 interface AuthContextType {
@@ -34,99 +31,98 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Initial primary administrator emails
-const INITIAL_ADMIN_EMAILS = ['khalid.a.kh990@gmail.com', 'admin@hospital.sa'];
+// One-time bootstrap account. The Firebase Auth account itself must exist.
+// On its first successful sign-in, the matching Firestore admin profile is created.
+const BOOTSTRAP_ADMIN_EMAIL = 'khalid.a.kh990@gmail.com';
 
-// Default master seed accounts
-const DEFAULT_SEED_USERS: Array<Omit<AppUser, 'createdAt'> & { password?: string }> = [
-  {
-    id: 'admin_khalid',
-    fullName: 'م. خالد (مدير النظام)',
-    email: 'khalid.a.kh990@gmail.com',
-    password: 'Khalid@5452',
-    role: 'admin',
-    active: true,
-  },
-  {
-    id: 'sup_saud',
-    fullName: 'سعود العتيبي (مشرف صيانة)',
-    email: 'saud@hospital.sa',
-    password: 'password123',
-    role: 'supervisor',
-    active: true,
+function mapAuthError(error: unknown) {
+  const code = (error as { code?: string })?.code;
+  if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+    return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
   }
-];
+  if (code === 'auth/too-many-requests') {
+    return 'تم إيقاف المحاولات مؤقتًا بسبب كثرة المحاولات. حاول لاحقًا.';
+  }
+  if (code === 'auth/network-request-failed') {
+    return 'تعذر الاتصال بخدمة تسجيل الدخول. تحقق من الإنترنت وحاول مرة أخرى.';
+  }
+  if (code === 'auth/operation-not-allowed') {
+    return 'تسجيل الدخول بالبريد وكلمة المرور غير مفعّل في Firebase Authentication.';
+  }
+  return 'تعذر تسجيل الدخول. يرجى المحاولة مرة أخرى.';
+}
+
+async function loadProfile(firebaseUid: string, firebaseEmail: string | null): Promise<AppUser | null> {
+  const userRef = doc(db, 'users', firebaseUid);
+  let userDoc = await getDoc(userRef);
+
+  // Secure bootstrap: only the preconfigured Firebase Auth email may create its own admin profile.
+  if (!userDoc.exists() && firebaseEmail?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL) {
+    await setDoc(userRef, {
+      id: firebaseUid,
+      fullName: 'مدير النظام',
+      email: firebaseEmail.toLowerCase(),
+      role: 'admin',
+      active: true,
+      createdAt: serverTimestamp(),
+    });
+    userDoc = await getDoc(userRef);
+  }
+
+  if (!userDoc.exists()) return null;
+
+  const data = userDoc.data();
+  return {
+    id: firebaseUid,
+    fullName: data.fullName || 'المستخدم',
+    email: data.email || firebaseEmail || '',
+    role: data.role === 'admin' ? 'admin' : 'supervisor',
+    active: data.active === true,
+    createdAt: data.createdAt,
+  };
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize and seed default accounts in Firestore if not present
   useEffect(() => {
-    const initUsers = async () => {
-      try {
-        const usersCol = collection(db, 'users');
-        const snap = await getDocs(query(usersCol, limit(1)));
-        if (snap.empty) {
-          for (const u of DEFAULT_SEED_USERS) {
-            await setDoc(doc(db, 'users', u.id), {
-              ...u,
-              createdAt: serverTimestamp(),
-            });
-          }
-        }
-      } catch (err) {
-        // Safe fallback if Firestore offline or initializing
-      }
-    };
-    initUsers();
-  }, []);
-
-  // Restore session
-  useEffect(() => {
-    // 1. Check if standard Firebase Auth has a session
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const profile: AppUser = {
-              id: firebaseUser.uid,
-              fullName: data.fullName || 'المشرف',
-              email: data.email || firebaseUser.email || '',
-              role: data.role || 'supervisor',
-              active: data.active !== false,
-              createdAt: data.createdAt,
-            };
-            if (!profile.active) {
-              await signOut(auth);
-              setAppUser(null);
-              localStorage.removeItem('sr_maintenance_user');
-            } else {
-              setAppUser(profile);
-              localStorage.setItem('sr_maintenance_user', JSON.stringify(profile));
-            }
-          }
-        } catch {
-          // fallback
-        }
-      } else {
-        // 2. Check local stored session
-        const saved = localStorage.getItem('sr_maintenance_user');
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (parsed && parsed.email) {
-              setAppUser(parsed);
-            }
-          } catch {
-            setAppUser(null);
-          }
-        }
+      setLoading(true);
+
+      if (!firebaseUser) {
+        setAppUser(null);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        const profile = await loadProfile(firebaseUser.uid, firebaseUser.email);
+
+        if (!profile) {
+          await signOut(auth);
+          setAppUser(null);
+          setError('الحساب موجود في Firebase Authentication لكنه غير مضاف للمستخدمين المصرح لهم في النظام.');
+          return;
+        }
+
+        if (!profile.active) {
+          await signOut(auth);
+          setAppUser(null);
+          setError('تم تعطيل هذا الحساب من قبل الإدارة.');
+          return;
+        }
+
+        setAppUser(profile);
+        setError(null);
+      } catch {
+        await signOut(auth).catch(() => undefined);
+        setAppUser(null);
+        setError('تعذر تحميل صلاحيات المستخدم من قاعدة البيانات.');
+      } finally {
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();
@@ -135,175 +131,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, pass: string) => {
     setError(null);
     setLoading(true);
-    const normalizedEmail = email.toLowerCase().trim();
 
     try {
-      // 1. Try Firebase Auth first if project has Email/Password enabled
-      let authUser: FirebaseUser | null = null;
-      try {
-        const cred = await signInWithEmailAndPassword(auth, normalizedEmail, pass);
-        authUser = cred.user;
-      } catch (authErr: any) {
-        // If auth/operation-not-allowed or user-not-found in Firebase Auth,
-        // we check the internal system database (Firestore `users`)
-      }
-
-      if (authUser) {
-        const userDoc = await getDoc(doc(db, 'users', authUser.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          if (data.active === false) {
-            await signOut(auth);
-            throw new Error('تم تعطيل هذا الحساب من قبل الإدارة.');
-          }
-          const profile: AppUser = {
-            id: authUser.uid,
-            fullName: data.fullName || 'المشرف',
-            email: normalizedEmail,
-            role: data.role || (INITIAL_ADMIN_EMAILS.includes(normalizedEmail) ? 'admin' : 'supervisor'),
-            active: true,
-            createdAt: data.createdAt || new Date(),
-          };
-          setAppUser(profile);
-          localStorage.setItem('sr_maintenance_user', JSON.stringify(profile));
-          return;
-        }
-      }
-
-      // 2. Query Firestore users collection by email
-      const usersCol = collection(db, 'users');
-      const q = query(usersCol, where('email', '==', normalizedEmail));
-      const userSnap = await getDocs(q);
-
-      if (!userSnap.empty) {
-        const userDoc = userSnap.docs[0];
-        const data = userDoc.data();
-
-        if (data.active === false) {
-          throw new Error('تم تعطيل هذا الحساب من قبل الإدارة.');
-        }
-
-        // Verify password
-        if (data.password && data.password !== pass) {
-          throw new Error('كلمة المرور غير صحيحة.');
-        }
-
-        const profile: AppUser = {
-          id: userDoc.id,
-          fullName: data.fullName,
-          email: data.email,
-          role: data.role || (INITIAL_ADMIN_EMAILS.includes(normalizedEmail) ? 'admin' : 'supervisor'),
-          active: true,
-          createdAt: data.createdAt || new Date(),
-        };
-
-        setAppUser(profile);
-        localStorage.setItem('sr_maintenance_user', JSON.stringify(profile));
-        return;
-      }
-
-      // 3. Check pre-configured default admin seed if not yet in database
-      const matchedSeed = DEFAULT_SEED_USERS.find(
-        (u) => u.email.toLowerCase() === normalizedEmail
-      );
-
-      if (matchedSeed) {
-        if (matchedSeed.password !== pass) {
-          throw new Error('كلمة المرور غير صحيحة.');
-        }
-
-        const profile: AppUser = {
-          id: matchedSeed.id,
-          fullName: matchedSeed.fullName,
-          email: matchedSeed.email,
-          role: matchedSeed.role,
-          active: true,
-          createdAt: new Date(),
-        };
-
-        // Save to Firestore
-        try {
-          await setDoc(doc(db, 'users', matchedSeed.id), {
-            ...profile,
-            password: matchedSeed.password,
-            createdAt: serverTimestamp(),
-          });
-        } catch {
-          // ignore
-        }
-
-        setAppUser(profile);
-        localStorage.setItem('sr_maintenance_user', JSON.stringify(profile));
-        return;
-      }
-
-      throw new Error('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
-    } catch (err: any) {
-      const msg = err.message || 'تعذر تسجيل الدخول. يرجى التأكد من البيانات.';
-      setError(msg);
-      throw new Error(msg);
-    } finally {
+      await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), pass);
+      // Profile loading is handled by onAuthStateChanged.
+    } catch (authError) {
+      const message = mapAuthError(authError);
+      setError(message);
       setLoading(false);
+      throw new Error(message);
     }
   };
 
-  // Admin creates new users from inside the system
   const createUserInSystem = async (
     fullName: string,
     email: string,
     pass: string,
     role: UserRole
   ) => {
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Check if user already exists
-    const usersCol = collection(db, 'users');
-    const existing = await getDocs(query(usersCol, where('email', '==', normalizedEmail)));
-    if (!existing.empty) {
-      throw new Error('البريد الإلكتروني مسجل مسبقًا في النظام.');
+    if (!appUser || appUser.role !== 'admin') {
+      throw new Error('هذه العملية متاحة لمدير النظام فقط.');
     }
 
-    const newId = 'usr_' + Date.now();
-    const newUserRecord = {
-      id: newId,
-      fullName: fullName.trim(),
-      email: normalizedEmail,
-      password: pass,
-      role,
-      active: true,
-      createdAt: serverTimestamp(),
-    };
+    const normalizedEmail = email.toLowerCase().trim();
+    const secondaryApp = initializeApp(
+      getActiveFirebaseConfig(),
+      `user-provisioning-${Date.now()}`
+    );
+    const secondaryAuth = getAuth(secondaryApp);
+    let createdUser: Awaited<ReturnType<typeof createUserWithEmailAndPassword>>['user'] | null = null;
 
-    await setDoc(doc(db, 'users', newId), newUserRecord);
+    try {
+      const credential = await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, pass);
+      createdUser = credential.user;
+
+      await setDoc(doc(db, 'users', createdUser.uid), {
+        id: createdUser.uid,
+        fullName: fullName.trim(),
+        email: normalizedEmail,
+        role,
+        active: true,
+        createdAt: serverTimestamp(),
+      });
+
+      await signOut(secondaryAuth);
+    } catch (userError: any) {
+      if (createdUser) {
+        await deleteUser(createdUser).catch(() => undefined);
+      }
+
+      if (userError?.code === 'auth/email-already-in-use') {
+        throw new Error('البريد الإلكتروني مسجل مسبقًا في Firebase Authentication.');
+      }
+      if (userError?.code === 'auth/weak-password') {
+        throw new Error('كلمة المرور ضعيفة. استخدم كلمة مرور أقوى.');
+      }
+
+      throw new Error(userError?.message || 'تعذر إنشاء المستخدم.');
+    } finally {
+      await deleteApp(secondaryApp).catch(() => undefined);
+    }
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch {
-      // ignore
-    }
+    await signOut(auth);
     setAppUser(null);
-    localStorage.removeItem('sr_maintenance_user');
   };
 
   const refreshUser = async () => {
-    if (appUser) {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', appUser.id));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setAppUser({
-            ...appUser,
-            fullName: data.fullName || appUser.fullName,
-            role: data.role || appUser.role,
-            active: data.active !== false,
-          });
-        }
-      } catch {
-        // ignore
-      }
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      setAppUser(null);
+      return;
     }
+
+    const profile = await loadProfile(firebaseUser.uid, firebaseUser.email);
+    if (!profile || !profile.active) {
+      await logout();
+      return;
+    }
+
+    setAppUser(profile);
   };
 
   const isAdmin = appUser?.role === 'admin';

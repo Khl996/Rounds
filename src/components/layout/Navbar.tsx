@@ -59,11 +59,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => onTabChange(item.id)}
                 className={`flex items-center gap-2 py-3 px-4 border-b-2 text-sm font-semibold transition-colors relative ${
                   isActive
-                    ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
+                    ? 'border-sky-600 text-sky-700 bg-sky-50/50'
                     : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-sky-600' : 'text-slate-400'}`} />
                 <span>{item.label}</span>
                 {item.badge && (
                   <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-bold text-white bg-rose-500 rounded-full">
@@ -87,7 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
                 className={`flex flex-col items-center justify-center py-2 relative transition-colors ${
-                  isActive ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+                  isActive ? 'text-sky-600 font-bold' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 <div className="relative">
@@ -100,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
                 <span className="text-[11px] mt-1">{item.label}</span>
                 {isActive && (
-                  <span className="absolute bottom-0 w-8 h-1 bg-emerald-600 rounded-t-full"></span>
+                  <span className="absolute bottom-0 w-8 h-1 bg-sky-600 rounded-t-full"></span>
                 )}
               </button>
             );

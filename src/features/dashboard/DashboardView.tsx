@@ -100,7 +100,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {activeRound ? (
             <button
               onClick={onResumeActiveRound}
-              className="py-3 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer animate-pulse"
+              className="py-3 px-5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer animate-pulse"
             >
               <PlayCircle className="w-4 h-4" />
               <span>متابعة الجولة الجارية</span>
@@ -108,7 +108,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           ) : (
             <button
               onClick={onStartRoundClick}
-              className="py-3 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
+              className="py-3 px-5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
             >
               <PlayCircle className="w-4 h-4" />
               <span>بدء جولة جديدة</span>
@@ -119,22 +119,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Active Round Card Alert if any */}
       {activeRound && (
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-gradient-to-r from-sky-500 to-cyan-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
               <Footprints className="w-6 h-6 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-200 animate-ping"></span>
-                <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-sky-200 animate-ping"></span>
+                <span className="text-xs font-bold text-sky-100 uppercase tracking-wider">
                   جولة نشطة حاليًا
                 </span>
               </div>
               <h3 className="text-base font-extrabold mt-0.5">
                 {getRoundTypeLabel(activeRound.type)} — المشرف: {activeRound.supervisorName}
               </h3>
-              <p className="text-xs text-emerald-100 mt-0.5">
+              <p className="text-xs text-sky-100 mt-0.5">
                 بدأت في {formatTimeArabic(activeRound.startedAt)} ({calculateDurationString(activeRound.startedAt, new Date())})
               </p>
             </div>
@@ -142,7 +142,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <button
             onClick={onResumeActiveRound}
-            className="py-2.5 px-4 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+            className="py-2.5 px-4 bg-white text-sky-800 hover:bg-sky-50 rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
           >
             الدخول لشاشة الجولة ←
           </button>
@@ -179,15 +179,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 3: معالجات اليوم */}
-        <div className="bg-white p-4 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-2xs">
+        <div className="bg-white p-4 rounded-2xl border border-sky-200 bg-sky-50/20 shadow-2xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-emerald-800">عولجت اليوم</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <span className="text-xs font-bold text-sky-800">عولجت اليوم</span>
+            <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-emerald-900">{todayStats.todayResolvedCount}</div>
-          <span className="text-[11px] text-emerald-700 mt-1 block font-medium">ملاحظة أُنجزت اليوم</span>
+          <div className="text-2xl font-black text-sky-900">{todayStats.todayResolvedCount}</div>
+          <span className="text-[11px] text-sky-700 mt-1 block font-medium">ملاحظة أُنجزت اليوم</span>
         </div>
 
         {/* Card 4: إجمالي ملاحظات اليوم */}
@@ -215,7 +215,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <button
                 onClick={onNavigateToObservations}
-                className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-0.5"
+                className="text-xs font-bold text-sky-700 hover:underline flex items-center gap-0.5"
               >
                 <span>عرض الكل</span>
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -224,7 +224,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             {recentOpenObservations.length === 0 ? (
               <div className="p-6 text-center border border-dashed border-slate-200 rounded-xl">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                <CheckCircle2 className="w-8 h-8 text-sky-500 mx-auto mb-2" />
                 <p className="text-xs font-bold text-slate-700">لا توجد ملاحظات مفتوحة حاليًا.</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">كافة الملاحظات تمت معالجتها بنجاح.</p>
               </div>
@@ -238,7 +238,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   >
                     <div className="flex items-center justify-between text-xs mb-1">
                       <span className="font-bold text-slate-800 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-emerald-600" />
+                        <MapPin className="w-3 h-3 text-sky-600" />
                         {obs.locationName}
                       </span>
                       <span className="text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded border border-amber-200 font-semibold">
@@ -264,12 +264,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Footprints className="w-4 h-4 text-emerald-600" />
+                <Footprints className="w-4 h-4 text-sky-600" />
                 <h3 className="font-extrabold text-sm text-slate-900">آخر الجولات الإشرافية</h3>
               </div>
               <button
                 onClick={onNavigateToRounds}
-                className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-0.5"
+                className="text-xs font-bold text-sky-700 hover:underline flex items-center gap-0.5"
               >
                 <span>كافة الجولات</span>
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -295,7 +295,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             r.type === 'maintenance'
                               ? 'bg-blue-50 text-blue-700'
-                              : 'bg-teal-50 text-teal-700'
+                              : 'bg-cyan-50 text-cyan-700'
                           }`}
                         >
                           {getRoundTypeLabel(r.type)}

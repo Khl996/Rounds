@@ -79,8 +79,8 @@ export const ActiveRoundView: React.FC<ActiveRoundViewProps> = ({
           <span>العودة للرئيسية</span>
         </button>
 
-        <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span className="inline-flex items-center gap-1 px-3 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-xs font-bold">
+          <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
           <span>جولة جارية الآن</span>
         </span>
       </div>
@@ -94,7 +94,7 @@ export const ActiveRoundView: React.FC<ActiveRoundViewProps> = ({
                 className={`px-2.5 py-0.5 rounded-md text-xs font-bold ${
                   round.type === 'maintenance'
                     ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'bg-teal-50 text-teal-700 border border-teal-200'
+                    : 'bg-cyan-50 text-cyan-700 border border-cyan-200'
                 }`}
               >
                 {getRoundTypeLabel(round.type)}
@@ -132,16 +132,16 @@ export const ActiveRoundView: React.FC<ActiveRoundViewProps> = ({
             <span className="text-[11px] text-amber-700 font-medium block">مفتوحة للمتابعة</span>
             <span className="text-base font-extrabold text-amber-900">{openCount}</span>
           </div>
-          <div className="p-2 rounded-xl bg-emerald-50/60 border border-emerald-100">
-            <span className="text-[11px] text-emerald-700 font-medium block">تمت معالجتها</span>
-            <span className="text-base font-extrabold text-emerald-900">{resolvedCount}</span>
+          <div className="p-2 rounded-xl bg-sky-50/60 border border-sky-100">
+            <span className="text-[11px] text-sky-700 font-medium block">تمت معالجتها</span>
+            <span className="text-base font-extrabold text-sky-900">{resolvedCount}</span>
           </div>
         </div>
       </div>
 
       {/* Success Toast */}
       {successToast && (
-        <div className="mb-4 p-3 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+        <div className="mb-4 p-3 rounded-xl bg-sky-600 text-white text-xs font-bold shadow-md flex items-center justify-between animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
             <Check className="w-4 h-4 shrink-0" />
             <span>{successToast}</span>
@@ -153,7 +153,7 @@ export const ActiveRoundView: React.FC<ActiveRoundViewProps> = ({
       <div className="mb-6">
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-2xl font-extrabold text-base shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer transform active:scale-[0.99]"
+          className="w-full py-4 px-6 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-2xl font-extrabold text-base shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer transform active:scale-[0.99]"
         >
           <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
             <Plus className="w-5 h-5 stroke-[3]" />
@@ -217,8 +217,8 @@ export const ActiveRoundView: React.FC<ActiveRoundViewProps> = ({
                         <span>مفتوحة</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-800 border border-sky-200 shrink-0">
+                        <CheckCircle2 className="w-3 h-3 text-sky-600" />
                         <span>معالجة</span>
                       </span>
                     )}
@@ -237,7 +237,7 @@ export const ActiveRoundView: React.FC<ActiveRoundViewProps> = ({
 
                   <div className="flex items-center justify-between text-[11px] text-slate-400 pr-8 pt-1 border-t border-slate-50">
                     <span>وقت التسجيل: {formatTimeArabic(obs.createdAt)}</span>
-                    <span className="text-emerald-700 font-bold hover:underline">
+                    <span className="text-sky-700 font-bold hover:underline">
                       عرض التحديثات والمعالجة ←
                     </span>
                   </div>
@@ -259,7 +259,7 @@ export const ActiveRoundView: React.FC<ActiveRoundViewProps> = ({
           onClick={() => setIsFinishModalOpen(true)}
           className="w-full sm:w-auto px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-sm shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
         >
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <CheckCircle2 className="w-4 h-4 text-sky-400" />
           <span>إنهاء الجولة</span>
         </button>
       </div>

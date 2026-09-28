@@ -36,7 +36,7 @@ function AppContent() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-14 h-14 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-md animate-bounce mb-3">
+        <div className="w-14 h-14 rounded-2xl bg-sky-600 flex items-center justify-center text-white shadow-md animate-bounce mb-3">
           <ClipboardCheck className="w-8 h-8" />
         </div>
         <p className="text-sm font-bold text-slate-800">جولات الصيانة</p>

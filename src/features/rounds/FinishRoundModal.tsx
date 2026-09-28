@@ -40,7 +40,7 @@ export const FinishRoundModal: React.FC<FinishRoundModalProps> = ({
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
@@ -79,8 +79,8 @@ export const FinishRoundModal: React.FC<FinishRoundModalProps> = ({
               </div>
             ) : (
               <div className="text-left">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
                   <span>جميعها معالجة</span>
                 </span>
               </div>
@@ -102,7 +102,7 @@ export const FinishRoundModal: React.FC<FinishRoundModalProps> = ({
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="«مثال: تمت جولة قسم الطوارئ بالكامل، وتوجد بعض ملاحظات الإنارة تم إبلاغ الصيانة بها»"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors placeholder:text-slate-400"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors placeholder:text-slate-400"
             />
           </div>
 
@@ -117,7 +117,7 @@ export const FinishRoundModal: React.FC<FinishRoundModalProps> = ({
                 <span>جاري إنهاء الجولة...</span>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-sky-400" />
                   <span>تأكيد إنهاء الجولة</span>
                 </>
               )}

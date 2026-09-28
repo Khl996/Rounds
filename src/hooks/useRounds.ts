@@ -16,14 +16,7 @@ import { calculateDurationMinutes } from '../utils/formatters';
 
 export function useRounds() {
   const { appUser } = useAuth();
-  const [rounds, setRounds] = useState<Round[]>(() => {
-    try {
-      const cached = localStorage.getItem('sr_rounds_cache');
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [rounds, setRounds] = useState<Round[]>([]);
   const [activeRound, setActiveRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,65 +26,52 @@ export function useRounds() {
       setRounds([]);
       setActiveRound(null);
       setLoading(false);
+      setError(null);
       return;
     }
 
-    try {
-      const q = query(collection(db, 'rounds'), orderBy('startedAt', 'desc'));
+    setLoading(true);
+    setError(null);
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: Round[] = snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<Round, 'id'>),
-          }));
+    const q = query(collection(db, 'rounds'), orderBy('startedAt', 'desc'));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: Round[] = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<Round, 'id'>),
+        }));
 
-          setRounds(list);
-          try {
-            localStorage.setItem('sr_rounds_cache', JSON.stringify(list));
-          } catch {}
+        setRounds(list);
+        const myActive = list.find(
+          (r) => r.status === 'in_progress' &&
+            (r.supervisorId === appUser.id || appUser.role === 'admin')
+        );
+        setActiveRound(myActive || null);
+        setLoading(false);
+      },
+      (firestoreError) => {
+        console.error('Rounds subscription failed:', firestoreError);
+        setError('تعذر تحميل الجولات من قاعدة البيانات.');
+        setRounds([]);
+        setActiveRound(null);
+        setLoading(false);
+      }
+    );
 
-          const myActive = list.find(
-            (r) => r.status === 'in_progress' && (r.supervisorId === appUser.id || appUser.role === 'admin')
-          );
-          setActiveRound(myActive || null);
-          setLoading(false);
-        },
-        () => {
-          // If Firestore is offline or disabled, rely on cached rounds
-          try {
-            const cached = localStorage.getItem('sr_rounds_cache');
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              setRounds(parsed);
-              const myActive = parsed.find(
-                (r: Round) => r.status === 'in_progress' && (r.supervisorId === appUser.id || appUser.role === 'admin')
-              );
-              setActiveRound(myActive || null);
-            }
-          } catch {}
-          setLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch {
-      setLoading(false);
-    }
+    return () => unsubscribe();
   }, [appUser]);
 
   const startRound = async (type: RoundType): Promise<string> => {
     if (!appUser) throw new Error('يجب تسجيل الدخول لبدء جولة');
-    const localId = `round_${Date.now()}`;
-    const newRoundData: Round = {
-      id: localId,
+
+    const payload = {
       type,
       supervisorId: appUser.id,
       supervisorName: appUser.fullName,
-      status: 'in_progress',
-      startedAt: new Date(),
-      createdAt: new Date(),
+      status: 'in_progress' as const,
+      startedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
       observationCount: 0,
       openCount: 0,
       resolvedCount: 0,
@@ -99,63 +79,31 @@ export function useRounds() {
     };
 
     try {
-      const newRoundRef = await addDoc(collection(db, 'rounds'), {
-        ...newRoundData,
-        startedAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-      });
-      newRoundData.id = newRoundRef.id;
-    } catch {
-      // safe fallback to localId
+      const ref = await addDoc(collection(db, 'rounds'), payload);
+      return ref.id;
+    } catch (writeError) {
+      console.error('Start round failed:', writeError);
+      throw new Error('تعذر بدء الجولة وحفظها في قاعدة البيانات.');
     }
-
-    setRounds((prev) => {
-      const updated = [newRoundData, ...prev.filter((r) => r.id !== newRoundData.id)];
-      try {
-        localStorage.setItem('sr_rounds_cache', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
-    setActiveRound(newRoundData);
-    return newRoundData.id;
   };
 
   const finishRound = async (roundId: string, summary?: string): Promise<void> => {
     const targetRound = rounds.find((r) => r.id === roundId) || activeRound;
-    const duration = targetRound?.startedAt ? calculateDurationMinutes(targetRound.startedAt, new Date()) : 0;
+    if (!targetRound) throw new Error('تعذر العثور على الجولة.');
+
+    const duration = calculateDurationMinutes(targetRound.startedAt, new Date());
 
     try {
-      const roundRef = doc(db, 'rounds', roundId);
-      await updateDoc(roundRef, {
+      await updateDoc(doc(db, 'rounds', roundId), {
         status: 'completed',
         completedAt: serverTimestamp(),
         durationMinutes: duration,
         summary: summary?.trim() || '',
       });
-    } catch {
-      // update local
+    } catch (writeError) {
+      console.error('Finish round failed:', writeError);
+      throw new Error('تعذر إنهاء الجولة وحفظها في قاعدة البيانات.');
     }
-
-    setRounds((prev) => {
-      const updated = prev.map((r) =>
-        r.id === roundId
-          ? {
-              ...r,
-              status: 'completed' as const,
-              completedAt: new Date(),
-              durationMinutes: duration,
-              summary: summary?.trim() || '',
-            }
-          : r
-      );
-      try {
-        localStorage.setItem('sr_rounds_cache', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
-    setActiveRound(null);
   };
 
   return {

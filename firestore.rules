@@ -1,48 +1,107 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
 
-    // Users collection
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActive() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().data.active == true;
+    }
+
+    function isAdmin() {
+      return isActive() && userDoc().data.role == 'admin';
+    }
+
     match /users/{userId} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.auth.token.email == 'khalid.a.kh990@gmail.com'
+        && request.resource.data.role == 'admin'
+        && request.resource.data.active == true
+        && request.resource.data.email == request.auth.token.email;
+
+      allow create, update: if isAdmin()
+        && !request.resource.data.keys().hasAny(['password']);
+
+      allow delete: if false;
     }
 
-    // Master data: Locations
     match /locations/{locationId} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isActive();
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
 
-    // Master data: Categories
     match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isActive();
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
 
-    // Rounds
     match /rounds/{roundId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if request.auth != null &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read: if isActive();
+
+      allow create: if isActive()
+        && request.resource.data.supervisorId == request.auth.uid
+        && request.resource.data.status == 'in_progress';
+
+      allow update: if isActive()
+        && request.resource.data.supervisorId == resource.data.supervisorId
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.startedAt == resource.data.startedAt
+        && (
+          resource.data.supervisorId == request.auth.uid
+          || isAdmin()
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['observationCount', 'openCount', 'resolvedCount'])
+        );
+
+      allow delete: if false;
     }
 
-    // Observations
     match /observations/{obsId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if request.auth != null &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read: if isActive();
+
+      allow create: if isActive()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'open'
+        && exists(/databases/$(database)/documents/rounds/$(request.resource.data.roundId))
+        && (
+          get(/databases/$(database)/documents/rounds/$(request.resource.data.roundId)).data.supervisorId == request.auth.uid
+          || isAdmin()
+        )
+        && get(/databases/$(database)/documents/rounds/$(request.resource.data.roundId)).data.status == 'in_progress';
+
+      allow update: if isActive()
+        && request.resource.data.roundId == resource.data.roundId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.locationId == resource.data.locationId
+        && request.resource.data.categoryId == resource.data.categoryId
+        && request.resource.data.description == resource.data.description
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'resolvedBy', 'resolvedByName', 'resolvedAt', 'updatedAt']);
+
+      allow delete: if false;
     }
 
-    // Observation Updates (Audit trail - immutable history)
     match /observationUpdates/{updateId} {
-      allow read: if true;
-      allow create: if request.resource.data.type in ['comment', 'resolved', 'reopened'];
-      // Strictly prevent editing or deleting historical updates to preserve audit integrity
+      allow read: if isActive();
+
+      allow create: if isActive()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.type in ['comment', 'resolved', 'reopened']
+        && exists(/databases/$(database)/documents/observations/$(request.resource.data.observationId));
+
       allow update, delete: if false;
     }
   }
