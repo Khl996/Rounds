@@ -57,7 +57,7 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
           {round.status === 'in_progress' && onContinueRound && (
             <button
               onClick={onContinueRound}
-              className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              className="py-2 px-3.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
             >
               متابعة الجولة الميدانية
             </button>
@@ -67,7 +67,7 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
             onClick={() => setIsPdfModalOpen(true)}
             className="inline-flex items-center gap-2 py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-emerald-400" />
+            <Printer className="w-4 h-4 text-sky-400" />
             <span>تصدير PDF</span>
           </button>
         </div>
@@ -82,7 +82,7 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
                 className={`px-3 py-1 rounded-lg text-xs font-extrabold ${
                   round.type === 'maintenance'
                     ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'bg-teal-50 text-teal-700 border border-teal-200'
+                    : 'bg-cyan-50 text-cyan-700 border border-cyan-200'
                 }`}
               >
                 {getRoundTypeLabel(round.type)}
@@ -93,7 +93,7 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                   round.status === 'completed'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
                     : 'bg-amber-50 text-amber-700 border border-amber-200'
                 }`}
               >
@@ -146,7 +146,7 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
 
           <div>
             <span className="text-slate-400 block mb-1">المدة الإجمالية:</span>
-            <div className="font-extrabold text-emerald-800 text-sm">
+            <div className="font-extrabold text-sky-800 text-sm">
               {calculateDurationString(round.startedAt, round.completedAt)}
             </div>
           </div>
@@ -172,9 +172,9 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
             <span className="text-xl font-black text-slate-900">{observations.length}</span>
           </div>
 
-          <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200">
-            <span className="text-xs text-emerald-800 font-medium block">تمت المعالجة</span>
-            <span className="text-xl font-black text-emerald-900">{resolvedCount}</span>
+          <div className="p-3 bg-sky-50/60 rounded-xl border border-sky-200">
+            <span className="text-xs text-sky-800 font-medium block">تمت المعالجة</span>
+            <span className="text-xl font-black text-sky-900">{resolvedCount}</span>
           </div>
 
           <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200">
@@ -219,7 +219,7 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
                         {obs.orderNumber || idx + 1}
                       </span>
                       <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-900">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        <MapPin className="w-3.5 h-3.5 text-sky-600" />
                         {obs.locationName}
                       </span>
                       <span className="text-slate-300">•</span>
@@ -235,8 +235,8 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
                         <span>مفتوحة</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
                         <span>تمت المعالجة</span>
                       </span>
                     )}
@@ -260,7 +260,7 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
                     </div>
 
                     {!isOpen && (
-                      <div className="text-emerald-700 font-bold">
+                      <div className="text-sky-700 font-bold">
                         تمت المعالجة بواسطة {obs.resolvedByName || 'المشرف'}
                       </div>
                     )}
