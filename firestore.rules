@@ -58,7 +58,12 @@ service cloud.firestore {
         && request.resource.data.supervisorId == resource.data.supervisorId
         && request.resource.data.type == resource.data.type
         && request.resource.data.startedAt == resource.data.startedAt
-        && (resource.data.supervisorId == request.auth.uid || isAdmin());
+        && (
+          resource.data.supervisorId == request.auth.uid
+          || isAdmin()
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['observationCount', 'openCount', 'resolvedCount'])
+        );
 
       allow delete: if false;
     }
@@ -68,7 +73,13 @@ service cloud.firestore {
 
       allow create: if isActive()
         && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.status == 'open';
+        && request.resource.data.status == 'open'
+        && exists(/databases/$(database)/documents/rounds/$(request.resource.data.roundId))
+        && (
+          get(/databases/$(database)/documents/rounds/$(request.resource.data.roundId)).data.supervisorId == request.auth.uid
+          || isAdmin()
+        )
+        && get(/databases/$(database)/documents/rounds/$(request.resource.data.roundId)).data.status == 'in_progress';
 
       allow update: if isActive()
         && request.resource.data.roundId == resource.data.roundId
@@ -76,7 +87,9 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.locationId == resource.data.locationId
         && request.resource.data.categoryId == resource.data.categoryId
-        && request.resource.data.description == resource.data.description;
+        && request.resource.data.description == resource.data.description
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'resolvedBy', 'resolvedByName', 'resolvedAt', 'updatedAt']);
 
       allow delete: if false;
     }
