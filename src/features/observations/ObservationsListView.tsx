@@ -1,23 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Observation } from '../../types';
 import { useMasterData } from '../../hooks/useMasterData';
-import {
-  formatDateArabic,
-  formatTimeArabic,
-} from '../../utils/formatters';
-import {
-  AlertCircle,
-  CheckCircle2,
-  Filter,
-  MapPin,
-  Tag,
-  User,
-  Calendar,
-  X,
-  Search,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import { formatTimeArabic } from '../../utils/formatters';
+import { Filter, X } from 'lucide-react';
 
 interface ObservationsListViewProps {
   observations: Observation[];
@@ -32,322 +17,247 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
 }) => {
   const { locations, categories } = useMasterData();
 
-  const [statusTab, setStatusTab] = useState<'all' | 'open' | 'resolved'>('all');
+  // Default tab: 'open'
+  const [statusTab, setStatusTab] = useState<'open' | 'resolved' | 'all'>('open');
+  const [showFilters, setShowFilters] = useState(false);
   const [filterLocation, setFilterLocation] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('');
-  const [filterSupervisor, setFilterSupervisor] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
+  const [filterDate, setFilterDate] = useState<string>('');
 
-  // Extract unique supervisors
-  const uniqueSupervisors = useMemo(() => {
-    const names = new Set<string>();
-    observations.forEach((o) => {
-      if (o.createdByName) names.add(o.createdByName);
-    });
-    return Array.from(names);
-  }, [observations]);
+  const openCount = useMemo(
+    () => observations.filter((o) => o.status === 'open').length,
+    [observations]
+  );
+  const resolvedCount = useMemo(
+    () => observations.filter((o) => o.status === 'resolved').length,
+    [observations]
+  );
 
-  // Filtered observations
   const filteredObservations = useMemo(() => {
     return observations.filter((obs) => {
+      // 1. Status Filter
       if (statusTab === 'open' && obs.status !== 'open') return false;
       if (statusTab === 'resolved' && obs.status !== 'resolved') return false;
+
+      // 2. Location Filter
       if (filterLocation && obs.locationId !== filterLocation) return false;
+
+      // 3. Category Filter
       if (filterCategory && obs.categoryId !== filterCategory) return false;
-      if (filterSupervisor && obs.createdByName !== filterSupervisor) return false;
-      if (searchQuery.trim()) {
-        const query = searchQuery.trim().toLowerCase();
-        const text = `${obs.description} ${obs.locationName} ${obs.categoryName} ${obs.actionTaken || ''}`.toLowerCase();
-        if (!text.includes(query)) return false;
+
+      // 4. Date Filter
+      if (filterDate) {
+        let obsDate = '';
+        if (obs.createdAt) {
+          const d =
+            typeof (obs.createdAt as any).toDate === 'function'
+              ? (obs.createdAt as any).toDate()
+              : new Date(obs.createdAt as any);
+          obsDate = d.toISOString().slice(0, 10);
+        }
+        if (obsDate !== filterDate) return false;
       }
+
       return true;
     });
-  }, [
-    observations,
-    statusTab,
-    filterLocation,
-    filterCategory,
-    filterSupervisor,
-    searchQuery,
-  ]);
+  }, [observations, statusTab, filterLocation, filterCategory, filterDate]);
 
-  const openCount = observations.filter((o) => o.status === 'open').length;
-  const resolvedCount = observations.filter((o) => o.status === 'resolved').length;
-
-  const hasExtraFilters =
-    filterLocation !== '' || filterCategory !== '' || filterSupervisor !== '' || searchQuery !== '';
+  const hasActiveFilters = filterLocation || filterCategory || filterDate;
 
   const clearFilters = () => {
     setFilterLocation('');
     setFilterCategory('');
-    setFilterSupervisor('');
-    setSearchQuery('');
+    setFilterDate('');
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
-      {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900">سجل الملاحظات الميدانية</h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            متابعة الملاحظات الحية في جميع المرافق ومعالجتها وتوثيق دورة حياتها
-          </p>
-        </div>
+    <div className="max-w-2xl mx-auto px-4 py-5 pb-24 space-y-4">
+      {/* Top Header & Search/Filter Button */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-slate-900">الملاحظات</h1>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer border ${
+            showFilters || hasActiveFilters
+              ? 'bg-sky-50 text-sky-700 border-sky-300'
+              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <Filter className="w-3.5 h-3.5" />
+          <span>تصفية</span>
+          {hasActiveFilters && (
+            <span className="w-2 h-2 rounded-full bg-sky-600"></span>
+          )}
+        </button>
       </div>
 
-      {/* Tabs Bar: الكل / المفتوحة / تمت المعالجة */}
-      <div className="flex bg-slate-200/70 p-1 rounded-2xl mb-4 text-xs font-bold">
-        <button
-          onClick={() => setStatusTab('all')}
-          className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            statusTab === 'all'
-              ? 'bg-white text-slate-900 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <span>الكل</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600">
-            {observations.length}
-          </span>
-        </button>
-
+      {/* Three Top Tabs: مفتوحة / تمت المعالجة / الكل */}
+      <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
         <button
           onClick={() => setStatusTab('open')}
-          className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
             statusTab === 'open'
-              ? 'bg-white text-amber-900 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-white text-amber-700 shadow-2xs font-bold'
+              : 'hover:text-slate-900'
           }`}
         >
-          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-          <span>المفتوحة</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900">
+          <span>مفتوحة</span>
+          <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded-full">
             {openCount}
           </span>
         </button>
 
         <button
           onClick={() => setStatusTab('resolved')}
-          className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
             statusTab === 'resolved'
-              ? 'bg-white text-sky-900 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-white text-emerald-700 shadow-2xs font-bold'
+              : 'hover:text-slate-900'
           }`}
         >
-          <span className="w-2 h-2 rounded-full bg-sky-500"></span>
           <span>تمت المعالجة</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-sky-100 text-sky-900">
+          <span className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded-full">
             {resolvedCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusTab('all')}
+          className={`py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+            statusTab === 'all'
+              ? 'bg-white text-slate-900 shadow-2xs font-bold'
+              : 'hover:text-slate-900'
+          }`}
+        >
+          <span>الكل</span>
+          <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full">
+            {observations.length}
           </span>
         </button>
       </div>
 
-      {/* Search & Filter Controls */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs mb-6 overflow-hidden">
-        <div className="p-3 sm:p-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 sm:border-none">
-          {/* Search box */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-2.5" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="بحث في الملاحظة، الموقع، أو الإجراء..."
-              className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute left-2.5 top-2.5 text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {hasExtraFilters && (
+      {/* Optional Filters Panel */}
+      {showFilters && (
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3 text-xs">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span className="font-bold text-slate-700">خيارات التصفية</span>
+            {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="text-[11px] text-rose-600 hover:underline flex items-center gap-0.5"
+                className="text-sky-600 hover:text-sky-800 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <X className="w-3 h-3" />
-                <span>مسح التصفية</span>
+                <span>إعادة ضبط</span>
               </button>
             )}
-            <button
-              onClick={() => setShowFiltersMobile(!showFiltersMobile)}
-              className="sm:hidden text-xs text-slate-600 p-1.5 bg-slate-100 rounded-lg flex items-center gap-1"
-            >
-              <Filter className="w-3.5 h-3.5" />
-              <span>فلاتر</span>
-            </button>
           </div>
-        </div>
 
-        {/* Filters Grid */}
-        <div
-          className={`p-4 pt-0 sm:pt-2 border-t border-slate-100 sm:border-none ${
-            showFiltersMobile ? 'block' : 'hidden sm:block'
-          }`}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Location */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {/* الموقع */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">الموقع الميداني</label>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                الموقع
+              </label>
               <select
                 value={filterLocation}
                 onChange={(e) => setFilterLocation(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs bg-white"
               >
                 <option value="">كافة المواقع</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Category */}
+            {/* التصنيف */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">التصنيف</label>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                التصنيف
+              </label>
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs bg-white"
               >
                 <option value="">كافة التصنيفات</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Supervisor */}
+            {/* التاريخ */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">المشرف المسجّل</label>
-              <select
-                value={filterSupervisor}
-                onChange={(e) => setFilterSupervisor(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-              >
-                <option value="">كافة المشرفين</option>
-                {uniqueSupervisors.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                التاريخ
+              </label>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-xs bg-white"
+              />
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Observations Cards List */}
-      <div>
+      {/* Observation Cards List */}
+      <div className="space-y-2.5">
         {loading ? (
-          <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
-            <p className="text-xs text-slate-500 font-semibold animate-pulse">جاري تحميل الملاحظات...</p>
+          <div className="text-center py-10 text-xs text-slate-400">
+            جاري تحميل الملاحظات...
           </div>
         ) : filteredObservations.length === 0 ? (
-          <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-300">
-            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-              <AlertCircle className="w-6 h-6" />
-            </div>
-            <p className="text-sm font-bold text-slate-700">لا توجد ملاحظات مطابقة.</p>
-            <p className="text-xs text-slate-500 mt-1">
-              {statusTab === 'open'
-                ? 'لا توجد ملاحظات مفتوحة حاليًا. جميع الملاحظات معالجة بنجاح!'
-                : 'جرب تعديل خيارات التصفية أو البحث.'}
-            </p>
+          <div className="bg-white p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">
+            لا توجد ملاحظات تطابق الاختيار.
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredObservations.map((obs) => {
-              const isOpen = obs.status === 'open';
-
-              return (
-                <div
-                  key={obs.id}
-                  onClick={() => onSelectObservation(obs)}
-                  className={`bg-white rounded-2xl border p-4 sm:p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer group ${
-                    isOpen ? 'border-amber-200/80 hover:border-amber-300' : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  {/* Card Header Tag */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      {isOpen ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                          <span>مفتوحة</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
-                          <span>تمت المعالجة</span>
-                        </span>
-                      )}
-
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                        <Tag className="w-3 h-3 text-slate-400" />
-                        {obs.categoryName}
-                      </span>
-                    </div>
-
-                    <span className="text-[11px] text-slate-400">
-                      {formatTimeArabic(obs.createdAt)}
-                    </span>
-                  </div>
-
-                  {/* Main Description */}
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-relaxed mb-2.5">
-                    {obs.description}
-                  </h3>
-
-                  {/* Action Taken if present */}
-                  {obs.actionTaken && (
-                    <div className="mb-3 p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600">
-                      <span className="font-bold text-slate-700">الإجراء الميداني: </span>
-                      <span>{obs.actionTaken}</span>
-                    </div>
-                  )}
-
-                  {/* Card Footer */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-100 text-xs text-slate-500">
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                        <MapPin className="w-3.5 h-3.5 text-sky-600" />
-                        {obs.locationName}
-                      </span>
-                      <span>•</span>
-                      <span className="inline-flex items-center gap-1">
-                        <User className="w-3 h-3 text-slate-400" />
-                        {obs.createdByName}
-                      </span>
-                      <span>•</span>
-                      <span>{formatDateArabic(obs.createdAt)}</span>
-                    </div>
-
-                    {!isOpen && obs.resolvedByName ? (
-                      <span className="text-sky-700 font-bold text-[11px]">
-                        عولجت بواسطة {obs.resolvedByName}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 text-[11px] group-hover:text-sky-700 transition-colors font-bold">
-                        متابعة وتحديث ←
-                      </span>
-                    )}
-                  </div>
+          filteredObservations.map((obs) => {
+            const isOpen = obs.status === 'open';
+            return (
+              <div
+                key={obs.id}
+                onClick={() => onSelectObservation(obs)}
+                className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors cursor-pointer space-y-1.5"
+              >
+                {/* كهرباء */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-sky-700">
+                    {obs.categoryName}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium ${
+                      isOpen
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    }`}
+                  >
+                    {isOpen ? 'مفتوحة' : 'تمت المعالجة'}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* لمبة الممر أمام غرفة 12 لا تعمل */}
+                <p className="text-sm text-slate-900 leading-snug">
+                  {obs.description}
+                </p>
+
+                {/* العيادات الخارجية • 09:35 • خالد */}
+                <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1 border-t border-slate-50">
+                  <span>{obs.locationName}</span>
+                  <span>•</span>
+                  <span>{formatTimeArabic(obs.createdAt)}</span>
+                  <span>•</span>
+                  <span>{obs.createdByName}</span>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>

@@ -11,7 +11,6 @@ import { Header } from './components/layout/Header';
 import { Navbar, NavTab } from './components/layout/Navbar';
 import { AuthView } from './features/auth/AuthView';
 import { DashboardView } from './features/dashboard/DashboardView';
-import { RoundsListView } from './features/rounds/RoundsListView';
 import { ActiveRoundView } from './features/rounds/ActiveRoundView';
 import { RoundDetailsView } from './features/rounds/RoundDetailsView';
 import { StartRoundModal } from './features/rounds/StartRoundModal';
@@ -23,7 +22,7 @@ import { ClipboardCheck } from 'lucide-react';
 
 function AppContent() {
   const { appUser, loading: authLoading, isAdmin } = useAuth();
-  const { rounds, activeRound, loading: roundsLoading, startRound, finishRound } = useRounds();
+  const { rounds, activeRound, startRound, finishRound } = useRounds();
   const { observations, loading: obsLoading } = useObservations();
 
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
@@ -36,11 +35,10 @@ function AppContent() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-14 h-14 rounded-2xl bg-sky-600 flex items-center justify-center text-white shadow-md animate-bounce mb-3">
-          <ClipboardCheck className="w-8 h-8" />
+        <div className="w-12 h-12 rounded-2xl bg-sky-600 flex items-center justify-center text-white shadow-xs mb-3">
+          <ClipboardCheck className="w-6 h-6" />
         </div>
         <p className="text-sm font-bold text-slate-800">جولات الصيانة</p>
-        <p className="text-xs text-slate-400 mt-1 animate-pulse">جاري تهيئة النظام...</p>
       </div>
     );
   }
@@ -51,7 +49,7 @@ function AppContent() {
   }
 
   const handleStartRound = async (type: RoundType) => {
-    const newRoundId = await startRound(type);
+    await startRound(type);
     setIsStartModalOpen(false);
     setViewingActiveRound(true);
     setSelectedRound(null);
@@ -61,7 +59,6 @@ function AppContent() {
     if (!activeRound) return;
     await finishRound(activeRound.id, summary);
     setViewingActiveRound(false);
-    // Find finished round or select it
     const finished: Round = {
       ...activeRound,
       status: 'completed',
@@ -69,7 +66,6 @@ function AppContent() {
       completedAt: new Date(),
     };
     setSelectedRound(finished);
-    setCurrentTab('rounds');
   };
 
   const openCount = observations.filter((o) => o.status === 'open').length;
@@ -86,7 +82,7 @@ function AppContent() {
         currentTab={currentTab}
       />
 
-      {/* Navigation Tabs (Top for desktop, bottom for mobile) */}
+      {/* Navigation Tabs (الرئيسية / الملاحظات / الإدارة) */}
       <Navbar
         currentTab={currentTab}
         onTabChange={(tab) => {
@@ -127,20 +123,8 @@ function AppContent() {
             activeRound={activeRound}
             onStartRoundClick={() => setIsStartModalOpen(true)}
             onResumeActiveRound={() => setViewingActiveRound(true)}
-            onNavigateToRounds={() => {
-              setCurrentTab('rounds');
-              setSelectedRound(null);
-            }}
+            onSelectRound={(r) => setSelectedRound(r)}
             onNavigateToObservations={() => setCurrentTab('observations')}
-            onSelectRound={(r) => setSelectedRound(r)}
-            onSelectObservation={(obs) => setSelectedObservation(obs)}
-          />
-        ) : currentTab === 'rounds' ? (
-          <RoundsListView
-            rounds={rounds}
-            loading={roundsLoading}
-            onSelectRound={(r) => setSelectedRound(r)}
-            onStartRoundClick={() => setIsStartModalOpen(true)}
           />
         ) : currentTab === 'observations' ? (
           <ObservationsListView
@@ -157,10 +141,8 @@ function AppContent() {
             activeRound={activeRound}
             onStartRoundClick={() => setIsStartModalOpen(true)}
             onResumeActiveRound={() => setViewingActiveRound(true)}
-            onNavigateToRounds={() => setCurrentTab('rounds')}
-            onNavigateToObservations={() => setCurrentTab('observations')}
             onSelectRound={(r) => setSelectedRound(r)}
-            onSelectObservation={(obs) => setSelectedObservation(obs)}
+            onNavigateToObservations={() => setCurrentTab('observations')}
           />
         )}
       </main>

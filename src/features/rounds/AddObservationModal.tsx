@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { LocationItem, CategoryItem } from '../../types';
-import { X, Check, Plus, AlertCircle, MapPin, Tag, Wrench } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 
 interface AddObservationModalProps {
   isOpen: boolean;
@@ -29,21 +29,10 @@ export const AddObservationModal: React.FC<AddObservationModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Group locations by Building / Floor
-  const groupedLocations = useMemo(() => {
-    const active = locations.filter((l) => l.active !== false);
-    const groups: { [groupKey: string]: LocationItem[] } = {};
-
-    active.forEach((loc) => {
-      const groupKey = loc.building
-        ? `${loc.building}${loc.floor ? ` - ${loc.floor}` : ''}`
-        : 'المواقع العامة';
-      if (!groups[groupKey]) groups[groupKey] = [];
-      groups[groupKey].push(loc);
-    });
-
-    return groups;
-  }, [locations]);
+  const activeLocations = useMemo(
+    () => locations.filter((l) => l.active !== false),
+    [locations]
+  );
 
   const activeCategories = useMemo(
     () => categories.filter((c) => c.active !== false),
@@ -56,20 +45,20 @@ export const AddObservationModal: React.FC<AddObservationModalProps> = ({
     e.preventDefault();
     setError(null);
 
-    const loc = locations.find((l) => l.id === selectedLocationId);
+    const loc = activeLocations.find((l) => l.id === selectedLocationId);
     if (!loc) {
-      setError('يرجى اختيار الموقع من القائمة.');
+      setError('يرجى اختيار الموقع.');
       return;
     }
 
-    const cat = categories.find((c) => c.id === selectedCategoryId);
+    const cat = activeCategories.find((c) => c.id === selectedCategoryId);
     if (!cat) {
       setError('يرجى اختيار التصنيف.');
       return;
     }
 
     if (!description.trim()) {
-      setError('يرجى كتابة وصف الملاحظة.');
+      setError('يرجى كتابة الملاحظة.');
       return;
     }
 
@@ -77,81 +66,74 @@ export const AddObservationModal: React.FC<AddObservationModalProps> = ({
     try {
       await onSave(loc, cat, description.trim(), actionTaken.trim() || undefined);
       // Reset form
+      setSelectedLocationId('');
+      setSelectedCategoryId('');
       setDescription('');
       setActionTaken('');
-      // Keep category or reset
       onClose();
     } catch (err: any) {
-      setError(err.message || 'تعذر حفظ الملاحظة. حاول مرة أخرى.');
+      setError(err.message || 'تعذر حفظ الملاحظة');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in slide-in-from-bottom duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
-              <Plus className="w-5 h-5 stroke-[2.5]" />
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">إضافة ملاحظة جديدة</h3>
-              <p className="text-xs text-slate-500 font-medium">تسجيل ملاحظة ميدانية سريعة</p>
-            </div>
-          </div>
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="font-bold text-slate-900 text-base">إضافة ملاحظة</h3>
           <button
             onClick={onClose}
             disabled={saving}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-full transition-colors"
+            className="p-1 text-slate-400 hover:text-slate-700 rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Location Dropdown */}
+          {/* 1. الموقع * */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-sky-600" />
-              <span>الموقع الميداني *</span>
+            <label className="block font-bold text-slate-700 mb-1">
+              الموقع *
             </label>
             <select
               required
               value={selectedLocationId}
               onChange={(e) => setSelectedLocationId(e.target.value)}
-              className="w-full px-3.5 py-3 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors"
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors"
             >
               <option value="">— اختر الموقع —</option>
-              {Object.entries(groupedLocations).map(([groupTitle, locs]) => (
-                <optgroup key={groupTitle} label={groupTitle}>
-                  {locs.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
+              {activeLocations.map((loc) => {
+                // Show simple hierarchy visually: المبنى الرئيسي › الدور الأول › قسم الرجال
+                const hierarchy = [loc.building, loc.floor, loc.name]
+                  .filter(Boolean)
+                  .join(' › ');
+                return (
+                  <option key={loc.id} value={loc.id}>
+                    {hierarchy}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
-          {/* Category Dropdown */}
+          {/* 2. التصنيف * */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-sky-600" />
-              <span>التصنيف *</span>
+            <label className="block font-bold text-slate-700 mb-1">
+              التصنيف *
             </label>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               {activeCategories.map((cat) => {
                 const isSelected = selectedCategoryId === cat.id;
                 return (
@@ -159,10 +141,10 @@ export const AddObservationModal: React.FC<AddObservationModalProps> = ({
                     key={cat.id}
                     type="button"
                     onClick={() => setSelectedCategoryId(cat.id)}
-                    className={`py-2 px-2 text-xs font-bold rounded-xl border transition-all text-center truncate ${
+                    className={`py-2 px-1 text-xs font-bold rounded-lg border transition-colors text-center truncate cursor-pointer ${
                       isSelected
-                        ? 'bg-sky-600 border-sky-600 text-white shadow-xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                        ? 'bg-sky-600 border-sky-600 text-white'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     {cat.name}
@@ -170,56 +152,45 @@ export const AddObservationModal: React.FC<AddObservationModalProps> = ({
                 );
               })}
             </div>
-            {!selectedCategoryId && (
-              <p className="text-[11px] text-slate-400 mt-1">اضغط لاختيار التصنيف المناسب</p>
-            )}
           </div>
 
-          {/* Description Textarea */}
+          {/* 3. الملاحظة * */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              وصف الملاحظة *
+            <label className="block font-bold text-slate-700 mb-1">
+              الملاحظة *
             </label>
             <textarea
               required
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="«مثال: لمبة الممر أمام غرفة 12 لا تعمل»"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors placeholder:text-slate-400 leading-relaxed"
+              placeholder="وصف المشكلة الميدانية..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors placeholder:text-slate-400"
             />
           </div>
 
-          {/* Action Taken Optional */}
+          {/* 4. الإجراء المتخذ (اختياري) */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <Wrench className="w-3.5 h-3.5 text-slate-500" />
-              <span>الإجراء المتخذ أثناء الجولة (اختياري)</span>
+            <label className="block font-bold text-slate-700 mb-1">
+              الإجراء المتخذ (اختياري)
             </label>
             <input
               type="text"
               value={actionTaken}
               onChange={(e) => setActionTaken(e.target.value)}
-              placeholder="«مثال: تم إبلاغ فني الكهرباء»"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors placeholder:text-slate-400"
+              placeholder="مثال: تم إبلاغ الفني..."
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-colors placeholder:text-slate-400"
             />
           </div>
 
-          {/* Action Buttons */}
+          {/* Buttons */}
           <div className="pt-2 flex items-center gap-2">
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 py-3 px-4 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 py-3 px-4 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer"
             >
-              {saving ? (
-                <span>جاري الحفظ...</span>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>حفظ الملاحظة</span>
-                </>
-              )}
+              {saving ? 'جاري الحفظ...' : 'حفظ الملاحظة'}
             </button>
             <button
               type="button"

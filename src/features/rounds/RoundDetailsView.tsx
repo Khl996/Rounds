@@ -8,19 +8,7 @@ import {
   calculateDurationString,
   getRoundTypeLabel,
 } from '../../utils/formatters';
-import {
-  Printer,
-  ArrowRight,
-  User,
-  Clock,
-  Calendar,
-  CheckCircle2,
-  AlertCircle,
-  MapPin,
-  Tag,
-  FileText,
-  RotateCcw,
-} from 'lucide-react';
+import { ArrowRight, Printer } from 'lucide-react';
 
 interface RoundDetailsViewProps {
   round: Round;
@@ -35,236 +23,155 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
   onObservationClick,
   onContinueRound,
 }) => {
-  const { observations, loading } = useObservations(round.id);
-  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const { observations } = useObservations(round.id);
+  const [isPdfOpen, setIsPdfOpen] = useState(false);
 
-  const openCount = observations.filter((o) => o.status === 'open').length;
-  const resolvedCount = observations.filter((o) => o.status === 'resolved').length;
+  const isInProgress = round.status === 'in_progress';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
-      {/* Top Bar Navigation */}
-      <div className="flex items-center justify-between gap-3 mb-6">
+    <div className="max-w-2xl mx-auto px-4 py-5 pb-24 space-y-4">
+      {/* Top Bar: Back button + PDF button */}
+      <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer py-1"
         >
           <ArrowRight className="w-4 h-4" />
-          <span>العودة لقائمة الجولات</span>
+          <span>العودة للرئيسية</span>
         </button>
 
         <div className="flex items-center gap-2">
-          {round.status === 'in_progress' && onContinueRound && (
+          {isInProgress && onContinueRound && (
             <button
               onClick={onContinueRound}
-              className="py-2 px-3.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              className="py-1.5 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
             >
-              متابعة الجولة الميدانية
+              متابعة الجولة
             </button>
           )}
-
           <button
-            onClick={() => setIsPdfModalOpen(true)}
-            className="inline-flex items-center gap-2 py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+            onClick={() => setIsPdfOpen(true)}
+            className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-sky-400" />
+            <Printer className="w-3.5 h-3.5 text-sky-400" />
             <span>تصدير PDF</span>
           </button>
         </div>
       </div>
 
-      {/* Main Round Card Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <span
-                className={`px-3 py-1 rounded-lg text-xs font-extrabold ${
-                  round.type === 'maintenance'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'bg-cyan-50 text-cyan-700 border border-cyan-200'
-                }`}
-              >
-                {getRoundTypeLabel(round.type)}
-              </span>
-              <span className="text-xs font-bold text-slate-400 font-mono">
-                #{round.id.slice(0, 6).toUpperCase()}
-              </span>
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                  round.status === 'completed'
-                    ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-                }`}
-              >
-                {round.status === 'completed' ? 'جولة مكتملة' : 'قيد التنفيذ'}
-              </span>
-            </div>
-
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900">
-              تفاصيل تقرير الجولة الإشرافية
-            </h1>
-          </div>
-
-          <button
-            onClick={() => setIsPdfModalOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+      {/* Round Details Summary Card:
+          نوع الجولة
+          المشرف
+          التاريخ
+          وقت البداية
+          وقت النهاية
+          المدة
+          عدد الملاحظات
+      */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3 text-xs">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <h1 className="text-base font-bold text-slate-900">
+            {getRoundTypeLabel(round.type)}
+          </h1>
+          <span
+            className={`px-2 py-0.5 rounded text-[11px] font-medium ${
+              isInProgress
+                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                : 'bg-slate-100 text-slate-700'
+            }`}
           >
-            <Printer className="w-3.5 h-3.5" />
-            <span>معاينة للطباعة</span>
-          </button>
-        </div>
-
-        {/* Info Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4 text-xs border-b border-slate-100">
-          <div>
-            <span className="text-slate-400 block mb-1">المشرف المسؤول:</span>
-            <div className="flex items-center gap-1.5 font-bold text-slate-900 text-sm">
-              <User className="w-3.5 h-3.5 text-slate-400" />
-              <span>{round.supervisorName}</span>
-            </div>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block mb-1">تاريخ الجولة:</span>
-            <div className="flex items-center gap-1.5 font-bold text-slate-900">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>{formatDateArabic(round.startedAt)}</span>
-            </div>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block mb-1">وقت البدء والانتهاء:</span>
-            <div className="flex items-center gap-1.5 font-bold text-slate-900">
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
-              <span>
-                {formatTimeArabic(round.startedAt)} -{' '}
-                {round.completedAt ? formatTimeArabic(round.completedAt) : 'قيد الإجراء'}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block mb-1">المدة الإجمالية:</span>
-            <div className="font-extrabold text-sky-800 text-sm">
-              {calculateDurationString(round.startedAt, round.completedAt)}
-            </div>
-          </div>
-        </div>
-
-        {/* Optional Round Summary */}
-        {round.summary && (
-          <div className="pt-4 text-xs">
-            <span className="font-bold text-slate-600 block mb-1 flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5 text-slate-400" />
-              <span>ملخص وتوصيات الجولة:</span>
-            </span>
-            <p className="text-slate-800 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100 font-medium">
-              {round.summary}
-            </p>
-          </div>
-        )}
-
-        {/* Metrics Banner */}
-        <div className="grid grid-cols-3 gap-3 pt-5 text-center">
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <span className="text-xs text-slate-500 font-medium block">إجمالي الملاحظات</span>
-            <span className="text-xl font-black text-slate-900">{observations.length}</span>
-          </div>
-
-          <div className="p-3 bg-sky-50/60 rounded-xl border border-sky-200">
-            <span className="text-xs text-sky-800 font-medium block">تمت المعالجة</span>
-            <span className="text-xl font-black text-sky-900">{resolvedCount}</span>
-          </div>
-
-          <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200">
-            <span className="text-xs text-amber-800 font-medium block">مفتوحة للمتابعة</span>
-            <span className="text-xl font-black text-amber-900">{openCount}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Observations Section */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-slate-900">
-            الملاحظات الميدانية المسجلة ({observations.length})
-          </h2>
-          <span className="text-xs text-slate-500">
-            اضغط على الملاحظة للاطلاع على سجل التحديثات أو معالجتها
+            {isInProgress ? 'قيد التنفيذ' : 'جولة مكتملة'}
           </span>
         </div>
 
-        {loading ? (
-          <div className="p-10 text-center bg-white rounded-2xl border border-slate-200">
-            <p className="text-xs text-slate-500 font-semibold animate-pulse">جاري تحميل الملاحظات...</p>
+        <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+          <div>
+            <span className="text-slate-400 block text-[11px]">المشرف</span>
+            <span className="font-bold text-slate-800">{round.supervisorName}</span>
           </div>
-        ) : observations.length === 0 ? (
-          <div className="p-10 text-center bg-white rounded-2xl border border-dashed border-slate-300">
-            <p className="text-sm font-bold text-slate-700">لم تسجل أي ملاحظات خلال هذه الجولة.</p>
+
+          <div>
+            <span className="text-slate-400 block text-[11px]">التاريخ</span>
+            <span className="font-bold text-slate-800">{formatDateArabic(round.startedAt)}</span>
+          </div>
+
+          <div>
+            <span className="text-slate-400 block text-[11px]">وقت البداية</span>
+            <span className="font-bold text-slate-800">{formatTimeArabic(round.startedAt)}</span>
+          </div>
+
+          <div>
+            <span className="text-slate-400 block text-[11px]">وقت النهاية</span>
+            <span className="font-bold text-slate-800">
+              {round.completedAt ? formatTimeArabic(round.completedAt) : 'قيد التنفيذ'}
+            </span>
+          </div>
+
+          <div>
+            <span className="text-slate-400 block text-[11px]">المدة</span>
+            <span className="font-bold text-slate-800">
+              {calculateDurationString(round.startedAt, round.completedAt || new Date())}
+            </span>
+          </div>
+
+          <div>
+            <span className="text-slate-400 block text-[11px]">عدد الملاحظات</span>
+            <span className="font-bold text-slate-800">{observations.length} ملاحظة</span>
+          </div>
+        </div>
+
+        {round.summary && (
+          <div className="pt-2 border-t border-slate-100">
+            <span className="text-slate-400 block text-[11px] mb-0.5">ملخص الجولة</span>
+            <p className="text-slate-700 leading-relaxed">{round.summary}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Observations List */}
+      <div className="space-y-2">
+        <h2 className="text-xs font-bold text-slate-600 px-1">الملاحظات المرصودة</h2>
+        {observations.length === 0 ? (
+          <div className="bg-white p-6 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">
+            لا توجد ملاحظات مسجلة في هذه الجولة.
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {observations.map((obs, idx) => {
               const isOpen = obs.status === 'open';
               return (
                 <div
                   key={obs.id}
                   onClick={() => onObservationClick(obs)}
-                  className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all cursor-pointer"
+                  className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors cursor-pointer space-y-1.5"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 text-xs font-black flex items-center justify-center">
-                        {obs.orderNumber || idx + 1}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-900">
-                        <MapPin className="w-3.5 h-3.5 text-sky-600" />
-                        {obs.locationName}
-                      </span>
-                      <span className="text-slate-300">•</span>
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
-                        <Tag className="w-3 h-3 text-slate-400" />
-                        {obs.categoryName}
-                      </span>
+                      <span className="font-bold text-slate-400">#{idx + 1}</span>
+                      <span className="font-bold text-sky-700">{obs.categoryName}</span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-600">{obs.locationName}</span>
                     </div>
-
-                    {isOpen ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                        <span>مفتوحة</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
-                        <span>تمت المعالجة</span>
-                      </span>
-                    )}
+                    <span
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium ${
+                        isOpen
+                          ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}
+                    >
+                      {isOpen ? 'مفتوحة' : 'تمت المعالجة'}
+                    </span>
                   </div>
 
-                  <p className="text-sm font-semibold text-slate-900 leading-relaxed mb-3">
+                  <p className="text-sm text-slate-900 leading-snug">
                     {obs.description}
                   </p>
 
                   {obs.actionTaken && (
-                    <div className="mb-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700">
-                      <span className="font-bold text-slate-800">الإجراء الميداني الفوري: </span>
-                      <span>{obs.actionTaken}</span>
-                    </div>
+                    <p className="text-xs text-slate-500">
+                      الإجراء: {obs.actionTaken}
+                    </p>
                   )}
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-100 text-xs text-slate-500">
-                    <div className="flex items-center gap-3">
-                      <span>سجلت في: {formatTimeArabic(obs.createdAt)}</span>
-                      <span>بواسطة: {obs.createdByName}</span>
-                    </div>
-
-                    {!isOpen && (
-                      <div className="text-sky-700 font-bold">
-                        تمت المعالجة بواسطة {obs.resolvedByName || 'المشرف'}
-                      </div>
-                    )}
-                  </div>
                 </div>
               );
             })}
@@ -272,12 +179,12 @@ export const RoundDetailsView: React.FC<RoundDetailsViewProps> = ({
         )}
       </div>
 
-      {/* PDF Report Modal */}
+      {/* PDF Export Modal */}
       <RoundPdfReport
         round={round}
         observations={observations}
-        isOpen={isPdfModalOpen}
-        onClose={() => setIsPdfModalOpen(false)}
+        isOpen={isPdfOpen}
+        onClose={() => setIsPdfOpen(false)}
       />
     </div>
   );

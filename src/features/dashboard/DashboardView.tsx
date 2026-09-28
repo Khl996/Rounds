@@ -1,24 +1,8 @@
 import React, { useMemo } from 'react';
 import { Round, Observation } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import {
-  PlayCircle,
-  AlertCircle,
-  CheckCircle2,
-  Calendar,
-  Clock,
-  ArrowLeft,
-  Footprints,
-  MapPin,
-  Tag,
-  ClipboardList,
-} from 'lucide-react';
-import {
-  formatDateArabic,
-  formatTimeArabic,
-  getRoundTypeLabel,
-  calculateDurationString,
-} from '../../utils/formatters';
+import { Plus, PlayCircle } from 'lucide-react';
+import { formatDateArabic, getRoundTypeLabel } from '../../utils/formatters';
 
 interface DashboardViewProps {
   rounds: Round[];
@@ -26,10 +10,8 @@ interface DashboardViewProps {
   activeRound: Round | null;
   onStartRoundClick: () => void;
   onResumeActiveRound: () => void;
-  onNavigateToRounds: () => void;
-  onNavigateToObservations: () => void;
   onSelectRound: (round: Round) => void;
-  onSelectObservation: (obs: Observation) => void;
+  onNavigateToObservations: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -38,287 +20,140 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   activeRound,
   onStartRoundClick,
   onResumeActiveRound,
-  onNavigateToRounds,
-  onNavigateToObservations,
   onSelectRound,
-  onSelectObservation,
+  onNavigateToObservations,
 }) => {
   const { appUser } = useAuth();
 
   // Calculate today's stats
-  const todayStats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
-    const isToday = (val: unknown) => {
-      if (!val) return false;
+  const todayRoundsCount = useMemo(() => {
+    return rounds.filter((r) => {
+      if (!r.startedAt) return false;
       let d: Date | null = null;
-      if (typeof (val as any).toDate === 'function') d = (val as any).toDate();
-      else d = new Date(val as any);
+      if (typeof (r.startedAt as any).toDate === 'function') {
+        d = (r.startedAt as any).toDate();
+      } else {
+        d = new Date(r.startedAt as any);
+      }
       return d && d >= today;
-    };
+    }).length;
+  }, [rounds, today]);
 
-    const todayRounds = rounds.filter((r) => isToday(r.startedAt));
-    const todayObs = observations.filter((o) => isToday(o.createdAt));
-    const todayResolved = observations.filter(
-      (o) => o.status === 'resolved' && isToday(o.resolvedAt || o.updatedAt)
-    );
-    const totalOpen = observations.filter((o) => o.status === 'open');
+  const openObservationsCount = useMemo(() => {
+    return observations.filter((o) => o.status === 'open').length;
+  }, [observations]);
 
-    return {
-      roundsCount: todayRounds.length,
-      todayObservationsCount: todayObs.length,
-      todayResolvedCount: todayResolved.length,
-      openObservationsCount: totalOpen.length,
-    };
-  }, [rounds, observations]);
-
-  // Recent 3 rounds
-  const recentRounds = useMemo(() => rounds.slice(0, 3), [rounds]);
-
-  // Most recent open observations (up to 4)
-  const recentOpenObservations = useMemo(
-    () => observations.filter((o) => o.status === 'open').slice(0, 4),
-    [observations]
-  );
+  // Maximum 5 recent rounds
+  const recentRounds = useMemo(() => rounds.slice(0, 5), [rounds]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 pb-24 space-y-6">
-      {/* Welcome Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900">
-            أهلاً، {appUser?.fullName || 'مشرف الجولة'}
-          </h1>
-          <p className="text-xs text-slate-500 font-medium mt-1">
-            اليوم {formatDateArabic(new Date())} • متابعة مرافق ومنشآت المستشفى
-          </p>
-        </div>
-
-        {/* Quick Action Button */}
-        <div>
-          {activeRound ? (
-            <button
-              onClick={onResumeActiveRound}
-              className="py-3 px-5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer animate-pulse"
-            >
-              <PlayCircle className="w-4 h-4" />
-              <span>متابعة الجولة الجارية</span>
-            </button>
-          ) : (
-            <button
-              onClick={onStartRoundClick}
-              className="py-3 px-5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
-            >
-              <PlayCircle className="w-4 h-4" />
-              <span>بدء جولة جديدة</span>
-            </button>
-          )}
-        </div>
+    <div className="max-w-2xl mx-auto px-4 py-5 pb-24 space-y-5">
+      {/* Top Header */}
+      <div>
+        <h1 className="text-xl font-bold text-slate-900">الجولات الإشرافية</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          مرحبًا، {appUser?.fullName || 'المشرف'}
+        </p>
       </div>
 
-      {/* Active Round Card Alert if any */}
-      {activeRound && (
-        <div className="bg-gradient-to-r from-sky-500 to-cyan-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-              <Footprints className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-sky-200 animate-ping"></span>
-                <span className="text-xs font-bold text-sky-100 uppercase tracking-wider">
-                  جولة نشطة حاليًا
-                </span>
-              </div>
-              <h3 className="text-base font-extrabold mt-0.5">
-                {getRoundTypeLabel(activeRound.type)} — المشرف: {activeRound.supervisorName}
-              </h3>
-              <p className="text-xs text-sky-100 mt-0.5">
-                بدأت في {formatTimeArabic(activeRound.startedAt)} ({calculateDurationString(activeRound.startedAt, new Date())})
-              </p>
-            </div>
-          </div>
-
+      {/* Main Action Button */}
+      <div>
+        {activeRound ? (
           <button
             onClick={onResumeActiveRound}
-            className="py-2.5 px-4 bg-white text-sky-800 hover:bg-sky-50 rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+            className="w-full py-3.5 px-4 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-base font-bold shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
-            الدخول لشاشة الجولة ←
+            <PlayCircle className="w-5 h-5" />
+            <span>متابعة الجولة الحالية</span>
           </button>
-        </div>
-      )}
+        ) : (
+          <button
+            onClick={onStartRoundClick}
+            className="w-full py-3.5 px-4 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-base font-bold shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Plus className="w-5 h-5 stroke-[2.5]" />
+            <span>بدء جولة</span>
+          </button>
+        )}
+      </div>
 
-      {/* Dashboard KPI Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        {/* Card 1: جولات اليوم */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-500">جولات اليوم</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Calendar className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-900">{todayStats.roundsCount}</div>
-          <span className="text-[11px] text-slate-400 mt-1 block">جولات إشرافية منفذة</span>
-        </div>
-
-        {/* Card 2: الملاحظات المفتوحة */}
+      {/* Two Small Summary Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Card 1: الملاحظات المفتوحة */}
         <div
           onClick={onNavigateToObservations}
-          className="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-2xs cursor-pointer hover:border-amber-300 transition-colors"
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs cursor-pointer hover:border-amber-300 transition-colors"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-amber-800">الملاحظات المفتوحة</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
-              <AlertCircle className="w-4 h-4" />
-            </div>
+          <span className="text-xs font-medium text-slate-500 block">الملاحظات المفتوحة</span>
+          <div className="text-2xl font-bold text-amber-600 mt-1">
+            {openObservationsCount}
           </div>
-          <div className="text-2xl font-black text-amber-900">{todayStats.openObservationsCount}</div>
-          <span className="text-[11px] text-amber-700 mt-1 block font-medium">بحاجة للمتابعة والمعالجة</span>
         </div>
 
-        {/* Card 3: معالجات اليوم */}
-        <div className="bg-white p-4 rounded-2xl border border-sky-200 bg-sky-50/20 shadow-2xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-sky-800">عولجت اليوم</span>
-            <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
+        {/* Card 2: جولات اليوم */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <span className="text-xs font-medium text-slate-500 block">جولات اليوم</span>
+          <div className="text-2xl font-bold text-sky-600 mt-1">
+            {todayRoundsCount}
           </div>
-          <div className="text-2xl font-black text-sky-900">{todayStats.todayResolvedCount}</div>
-          <span className="text-[11px] text-sky-700 mt-1 block font-medium">ملاحظة أُنجزت اليوم</span>
-        </div>
-
-        {/* Card 4: إجمالي ملاحظات اليوم */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-500">إجمالي ملاحظات اليوم</span>
-            <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
-              <ClipboardList className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-900">{todayStats.todayObservationsCount}</div>
-          <span className="text-[11px] text-slate-400 mt-1 block">رُصدت خلال اليوم</span>
         </div>
       </div>
 
-      {/* Two columns: Urgent Open Observations & Recent Rounds */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Urgent Open Observations */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-600" />
-                <h3 className="font-extrabold text-sm text-slate-900">ملاحظات مفتوحة للمتابعة</h3>
-              </div>
-              <button
-                onClick={onNavigateToObservations}
-                className="text-xs font-bold text-sky-700 hover:underline flex items-center gap-0.5"
-              >
-                <span>عرض الكل</span>
-                <ArrowLeft className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {recentOpenObservations.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-slate-200 rounded-xl">
-                <CheckCircle2 className="w-8 h-8 text-sky-500 mx-auto mb-2" />
-                <p className="text-xs font-bold text-slate-700">لا توجد ملاحظات مفتوحة حاليًا.</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">كافة الملاحظات تمت معالجتها بنجاح.</p>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {recentOpenObservations.map((obs) => (
-                  <div
-                    key={obs.id}
-                    onClick={() => onSelectObservation(obs)}
-                    className="p-3 rounded-xl border border-amber-100 bg-amber-50/40 hover:bg-amber-50 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-bold text-slate-800 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-sky-600" />
-                        {obs.locationName}
-                      </span>
-                      <span className="text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded border border-amber-200 font-semibold">
-                        {obs.categoryName}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-900 font-medium line-clamp-2">
-                      {obs.description}
-                    </p>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
-                      <span>{obs.createdByName}</span>
-                      <span>{formatTimeArabic(obs.createdAt)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* آخر الجولات (Recent Rounds - Max 5) */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <h2 className="text-sm font-bold text-slate-900">آخر الجولات</h2>
         </div>
 
-        {/* Recent Rounds */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Footprints className="w-4 h-4 text-sky-600" />
-                <h3 className="font-extrabold text-sm text-slate-900">آخر الجولات الإشرافية</h3>
-              </div>
-              <button
-                onClick={onNavigateToRounds}
-                className="text-xs font-bold text-sky-700 hover:underline flex items-center gap-0.5"
-              >
-                <span>كافة الجولات</span>
-                <ArrowLeft className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {recentRounds.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-slate-200 rounded-xl">
-                <p className="text-xs font-bold text-slate-700">لم يتم تسجيل أي جولات بعد.</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">اضغط على «بدء جولة جديدة» للبدء.</p>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {recentRounds.map((r) => (
-                  <div
-                    key={r.id}
-                    onClick={() => onSelectRound(r)}
-                    className="p-3 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            r.type === 'maintenance'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-cyan-50 text-cyan-700'
-                          }`}
-                        >
-                          {getRoundTypeLabel(r.type)}
-                        </span>
-                        <span className="font-bold text-slate-800">{r.supervisorName}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400">
-                        {formatDateArabic(r.startedAt)}
+        {recentRounds.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 text-xs">
+            لا توجد جولات مسجلة بعد.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {recentRounds.map((round) => {
+              const isCompleted = round.status === 'completed';
+              return (
+                <div
+                  key={round.id}
+                  onClick={() => onSelectRound(round)}
+                  className="p-3.5 hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-between gap-3 text-xs"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 text-sm">
+                        {getRoundTypeLabel(round.type)}
                       </span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-600">{round.supervisorName}</span>
                     </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span>المدة: {calculateDurationString(r.startedAt, r.completedAt)}</span>
-                      <span className="font-bold text-slate-700">
-                        {r.observationCount || 0} ملاحظة
-                      </span>
+                    <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+                      <span>{formatDateArabic(round.startedAt)}</span>
+                      <span>•</span>
+                      <span>{round.observationCount || 0} ملاحظة</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0 ${
+                      isCompleted
+                        ? 'bg-slate-100 text-slate-600'
+                        : 'bg-amber-50 text-amber-700'
+                    }`}
+                  >
+                    {isCompleted ? 'مكتملة' : 'قيد التنفيذ'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

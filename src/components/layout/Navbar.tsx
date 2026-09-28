@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LayoutDashboard, Footprints, AlertCircle, Settings } from 'lucide-react';
 
-export type NavTab = 'dashboard' | 'rounds' | 'observations' | 'admin';
+export type NavTab = 'dashboard' | 'observations' | 'admin';
 
 interface NavbarProps {
   currentTab: NavTab;
@@ -22,11 +22,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       id: 'dashboard' as NavTab,
       label: 'الرئيسية',
       icon: LayoutDashboard,
-    },
-    {
-      id: 'rounds' as NavTab,
-      label: 'الجولات',
-      icon: Footprints,
     },
     {
       id: 'observations' as NavTab,
