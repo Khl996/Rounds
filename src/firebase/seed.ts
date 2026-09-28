@@ -16,7 +16,7 @@ export const INITIAL_LOCATIONS = [
 
 export const INITIAL_CATEGORIES = [
   { name: 'كهرباء', sortOrder: 1 },
-  { name: 'تكييف وتبريد', sortOrder: 2 },
+  { name: 'تكييف', sortOrder: 2 },
   { name: 'سباكة', sortOrder: 3 },
   { name: 'مدني', sortOrder: 4 },
   { name: 'نظافة', sortOrder: 5 },

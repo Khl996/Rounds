@@ -1,0 +1,246 @@
+/* Formal A4 round report. Sized in print units so the screen preview matches the paper. */
+
+@page {
+  size: A4 portrait;
+  margin: 16mm 14mm 18mm;
+}
+
+.report-paper {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 16mm 14mm 18mm;
+  background: #fff;
+  color: #0f172a;
+  font-family: var(--font-sans);
+  font-size: 9.5pt;
+  line-height: 1.6;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 8px 28px rgb(15 23 42 / 0.1);
+}
+
+/* Header */
+.rpt-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8mm;
+  padding-bottom: 4mm;
+  border-bottom: 1.5pt solid #0f172a;
+}
+
+.rpt-title {
+  margin: 0;
+  font-size: 17pt;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.rpt-org {
+  margin: 0 0 1mm;
+  font-size: 9pt;
+  color: #475569;
+}
+
+/* Reserved for the facility logo. */
+.rpt-logo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 36mm;
+  height: 16mm;
+  flex-shrink: 0;
+}
+
+.rpt-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Round information */
+.rpt-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(4, auto);
+  grid-auto-flow: column;
+  column-gap: 10mm;
+  row-gap: 1.6mm;
+  margin: 5mm 0 0;
+  padding-bottom: 4.5mm;
+  border-bottom: 0.75pt solid #cbd5e1;
+}
+
+.rpt-meta > div {
+  display: grid;
+  grid-template-columns: 25mm 1fr;
+  gap: 3mm;
+}
+
+.rpt-meta dt {
+  color: #64748b;
+}
+
+.rpt-meta dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.rpt-counts {
+  margin: 4mm 0 3mm;
+  color: #334155;
+}
+
+.rpt-counts .sep {
+  margin: 0 3mm;
+  color: #cbd5e1;
+}
+
+/* Observations table */
+.rpt-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 9pt;
+  line-height: 1.55;
+}
+
+.rpt-table thead {
+  display: table-header-group;
+}
+
+.rpt-table th {
+  padding: 2mm 1.8mm;
+  background: #f1f5f9;
+  border-top: 0.75pt solid #94a3b8;
+  border-bottom: 0.75pt solid #94a3b8;
+  font-weight: 600;
+  text-align: start;
+  color: #1e293b;
+}
+
+.rpt-table td {
+  padding: 2.2mm 1.8mm;
+  border-bottom: 0.5pt solid #e2e8f0;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.rpt-table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.rpt-table .num {
+  text-align: center;
+  color: #64748b;
+}
+
+.rpt-table .muted {
+  color: #94a3b8;
+}
+
+.rpt-table .empty {
+  padding: 8mm 0;
+  text-align: center;
+  color: #64748b;
+}
+
+.rpt-status {
+  font-weight: 600;
+}
+
+.rpt-status.open {
+  color: #b45309;
+}
+
+.rpt-status.resolved {
+  color: #047857;
+}
+
+.rpt-resolution {
+  display: block;
+  margin-top: 0.8mm;
+  font-size: 8pt;
+  line-height: 1.45;
+  color: #64748b;
+  font-weight: 400;
+}
+
+/* Round summary */
+.rpt-section {
+  margin-top: 7mm;
+  break-inside: avoid;
+}
+
+.rpt-section h2 {
+  margin: 0 0 1.5mm;
+  font-size: 10.5pt;
+  font-weight: 600;
+  break-after: avoid;
+}
+
+.rpt-section p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+/* Signatures (layout only, no approval workflow) */
+.rpt-signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18mm;
+  margin-top: 14mm;
+  break-inside: avoid;
+}
+
+.rpt-signatures .role {
+  color: #64748b;
+}
+
+.rpt-signatures .name {
+  min-height: 1.6em;
+  font-weight: 500;
+}
+
+.rpt-signatures .line {
+  margin-top: 10mm;
+  border-top: 0.75pt solid #475569;
+}
+
+.rpt-signatures .hint {
+  margin-top: 1mm;
+  font-size: 8pt;
+  color: #94a3b8;
+}
+
+@media print {
+  html,
+  body {
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* Only the report is printed. */
+  body:has(.report-overlay) > :not(.report-overlay) {
+    display: none !important;
+  }
+
+  .report-overlay {
+    position: static !important;
+    display: block !important;
+    background: none !important;
+  }
+
+  .report-scroller {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .report-paper {
+    zoom: 1 !important;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+}

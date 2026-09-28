@@ -10,5 +10,7 @@ export function getActiveFirebaseConfig() {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// The project's database is the named database "default", not "(default)":
+// getFirestore(app) without an ID would target "(default)".
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export default app;

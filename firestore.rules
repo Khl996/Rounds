@@ -19,6 +19,11 @@ service cloud.firestore {
       return isActive() && userDoc().data.role == 'admin';
     }
 
+    // RND-YYYYMMDD-XXXX, see src/utils/roundCode.ts.
+    function isRoundCode(value) {
+      return value is string && value.matches('^RND-[0-9]{8}-[2-9A-HJKMNP-Z]{4}$');
+    }
+
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
 
@@ -52,12 +57,16 @@ service cloud.firestore {
 
       allow create: if isActive()
         && request.resource.data.supervisorId == request.auth.uid
-        && request.resource.data.status == 'in_progress';
+        && request.resource.data.status == 'in_progress'
+        // Optional so clients from before round numbers existed keep working.
+        && (!('roundCode' in request.resource.data) || isRoundCode(request.resource.data.roundCode));
 
       allow update: if isActive()
         && request.resource.data.supervisorId == resource.data.supervisorId
         && request.resource.data.type == resource.data.type
         && request.resource.data.startedAt == resource.data.startedAt
+        // The round number is fixed at creation: never changed, removed, or added later.
+        && request.resource.data.get('roundCode', null) == resource.data.get('roundCode', null)
         && (
           resource.data.supervisorId == request.auth.uid
           || isAdmin()

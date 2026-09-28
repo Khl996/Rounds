@@ -39,6 +39,7 @@
       "collection": "rounds",
       "fields": {
         "id": { "type": "string" },
+        "roundCode": { "type": "string", "description": "Permanent human-readable round number, e.g. RND-20260928-A4F2" },
         "type": { "type": "string", "enum": ["maintenance", "cleaning"] },
         "supervisorId": { "type": "string" },
         "supervisorName": { "type": "string" },

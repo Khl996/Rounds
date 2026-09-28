@@ -15,7 +15,11 @@ import { db } from '../firebase/config';
 import { Observation, ObservationUpdate, LocationItem, CategoryItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
-export function useObservations(roundId?: string) {
+// Stored when an observation is closed or reopened without a note.
+export const DEFAULT_RESOLVE_TEXT = 'تم إغلاق الملاحظة';
+export const DEFAULT_REOPEN_TEXT = 'تمت إعادة فتح الملاحظة';
+
+export function useObservations() {
   const { appUser } = useAuth();
   const [observations, setObservations] = useState<Observation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -32,53 +36,47 @@ export function useObservations(roundId?: string) {
     setLoading(true);
     setError(null);
 
-    const q = roundId
-      ? query(
-          collection(db, 'observations'),
-          where('roundId', '==', roundId),
-          orderBy('createdAt', 'asc')
-        )
-      : query(collection(db, 'observations'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'observations'), orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const list: Observation[] = snapshot.docs.map((docSnap, index) => {
-          const data = docSnap.data();
-          return {
-            id: docSnap.id,
-            orderNumber: data.orderNumber || index + 1,
-            roundId: data.roundId,
-            locationId: data.locationId,
-            locationName: data.locationName || '',
-            categoryId: data.categoryId,
-            categoryName: data.categoryName || '',
-            description: data.description || '',
-            actionTaken: data.actionTaken || '',
-            status: data.status || 'open',
-            createdBy: data.createdBy,
-            createdByName: data.createdByName || '',
-            createdAt: data.createdAt,
-            resolvedBy: data.resolvedBy,
-            resolvedByName: data.resolvedByName,
-            resolvedAt: data.resolvedAt,
-            updatedAt: data.updatedAt,
-          };
-        });
-
-        setObservations(list);
+        setObservations(
+          snapshot.docs.map((docSnap) => {
+            const data = docSnap.data({ serverTimestamps: 'estimate' });
+            return {
+              id: docSnap.id,
+              orderNumber: data.orderNumber,
+              roundId: data.roundId,
+              locationId: data.locationId,
+              locationName: data.locationName || '',
+              categoryId: data.categoryId,
+              categoryName: data.categoryName || '',
+              description: data.description || '',
+              actionTaken: data.actionTaken || '',
+              status: data.status || 'open',
+              createdBy: data.createdBy,
+              createdByName: data.createdByName || '',
+              createdAt: data.createdAt,
+              resolvedBy: data.resolvedBy,
+              resolvedByName: data.resolvedByName,
+              resolvedAt: data.resolvedAt,
+              updatedAt: data.updatedAt,
+            };
+          })
+        );
         setLoading(false);
       },
       (firestoreError) => {
         console.error('Observations subscription failed:', firestoreError);
-        setError('تعذر تحميل الملاحظات من قاعدة البيانات.');
+        setError('تعذر تحميل الملاحظات.');
         setObservations([]);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [appUser, roundId]);
+  }, [appUser]);
 
   const addObservation = async (
     targetRoundId: string,
@@ -87,8 +85,8 @@ export function useObservations(roundId?: string) {
     description: string,
     actionTaken?: string
   ): Promise<string> => {
-    if (!appUser) throw new Error('يجب تسجيل الدخول لإضافة ملاحظة');
-    if (!description.trim()) throw new Error('اكتب الملاحظة قبل الحفظ.');
+    if (!appUser) throw new Error('سجّل الدخول أولًا.');
+    if (!description.trim()) throw new Error('اكتب الملاحظة.');
 
     const nextOrder = observations.filter((o) => o.roundId === targetRoundId).length + 1;
     const batch = writeBatch(db);
@@ -117,36 +115,35 @@ export function useObservations(roundId?: string) {
 
     try {
       await batch.commit();
-
-      if (actionTaken?.trim()) {
-        await addDoc(collection(db, 'observationUpdates'), {
-          observationId: newObsRef.id,
-          type: 'comment',
-          text: `إجراء مبدئي أثناء الجولة: ${actionTaken.trim()}`,
-          createdBy: appUser.id,
-          createdByName: appUser.fullName,
-          createdAt: serverTimestamp(),
-        }).catch((err: unknown) => {
-          console.warn('Initial observation update log non-fatal error:', err);
-        });
-      }
-
-      return newObsRef.id;
     } catch (writeError) {
       console.error('Add observation failed:', writeError);
-      throw new Error('تعذر حفظ الملاحظة في قاعدة البيانات.');
+      throw new Error('لم تُحفظ الملاحظة. تحقق من الاتصال وحاول مرة أخرى.');
     }
+
+    if (actionTaken?.trim()) {
+      // Written after the batch (the update rule requires the observation to exist). Not awaited:
+      // the observation itself is already saved.
+      void addDoc(collection(db, 'observationUpdates'), {
+        observationId: newObsRef.id,
+        type: 'comment',
+        text: `إجراء أثناء الجولة: ${actionTaken.trim()}`,
+        createdBy: appUser.id,
+        createdByName: appUser.fullName,
+        createdAt: serverTimestamp(),
+      }).catch((err: unknown) => {
+        console.warn('Initial observation update log non-fatal error:', err);
+      });
+    }
+
+    return newObsRef.id;
   };
 
-  const resolveObservation = async (
-    obsId: string,
-    targetRoundId: string,
-    resolutionNote?: string
-  ): Promise<void> => {
-    if (!appUser) throw new Error('يجب تسجيل الدخول لمعالجة الملاحظة');
+  const resolveObservation = async (obs: Observation, note?: string): Promise<void> => {
+    if (!appUser) throw new Error('سجّل الدخول أولًا.');
+    if (obs.status === 'resolved') return;
 
     const batch = writeBatch(db);
-    batch.update(doc(db, 'observations', obsId), {
+    batch.update(doc(db, 'observations', obs.id), {
       status: 'resolved',
       resolvedBy: appUser.id,
       resolvedByName: appUser.fullName,
@@ -155,16 +152,16 @@ export function useObservations(roundId?: string) {
     });
 
     batch.set(doc(collection(db, 'observationUpdates')), {
-      observationId: obsId,
+      observationId: obs.id,
       type: 'resolved',
-      text: resolutionNote?.trim() || 'تمت معالجة الملاحظة والتأكد من سلامة الموقع',
+      text: note?.trim() || DEFAULT_RESOLVE_TEXT,
       createdBy: appUser.id,
       createdByName: appUser.fullName,
       createdAt: serverTimestamp(),
     });
 
-    if (targetRoundId) {
-      batch.update(doc(db, 'rounds', targetRoundId), {
+    if (obs.roundId) {
+      batch.update(doc(db, 'rounds', obs.roundId), {
         openCount: increment(-1),
         resolvedCount: increment(1),
       });
@@ -174,19 +171,16 @@ export function useObservations(roundId?: string) {
       await batch.commit();
     } catch (writeError) {
       console.error('Resolve observation failed:', writeError);
-      throw new Error('تعذر حفظ معالجة الملاحظة.');
+      throw new Error('تعذر إغلاق الملاحظة. حاول مرة أخرى.');
     }
   };
 
-  const reopenObservation = async (
-    obsId: string,
-    targetRoundId: string,
-    reopenReason?: string
-  ): Promise<void> => {
-    if (!appUser) throw new Error('يجب تسجيل الدخول لإعادة فتح الملاحظة');
+  const reopenObservation = async (obs: Observation, reason?: string): Promise<void> => {
+    if (!appUser) throw new Error('سجّل الدخول أولًا.');
+    if (obs.status === 'open') return;
 
     const batch = writeBatch(db);
-    batch.update(doc(db, 'observations', obsId), {
+    batch.update(doc(db, 'observations', obs.id), {
       status: 'open',
       resolvedBy: null,
       resolvedByName: null,
@@ -195,16 +189,16 @@ export function useObservations(roundId?: string) {
     });
 
     batch.set(doc(collection(db, 'observationUpdates')), {
-      observationId: obsId,
+      observationId: obs.id,
       type: 'reopened',
-      text: reopenReason?.trim() || 'تمت إعادة فتح الملاحظة لمتابعة المعالجة',
+      text: reason?.trim() || DEFAULT_REOPEN_TEXT,
       createdBy: appUser.id,
       createdByName: appUser.fullName,
       createdAt: serverTimestamp(),
     });
 
-    if (targetRoundId) {
-      batch.update(doc(db, 'rounds', targetRoundId), {
+    if (obs.roundId) {
+      batch.update(doc(db, 'rounds', obs.roundId), {
         openCount: increment(1),
         resolvedCount: increment(-1),
       });
@@ -214,12 +208,12 @@ export function useObservations(roundId?: string) {
       await batch.commit();
     } catch (writeError) {
       console.error('Reopen observation failed:', writeError);
-      throw new Error('تعذر إعادة فتح الملاحظة.');
+      throw new Error('تعذر إعادة فتح الملاحظة. حاول مرة أخرى.');
     }
   };
 
   const addComment = async (obsId: string, text: string): Promise<void> => {
-    if (!appUser) throw new Error('يجب تسجيل الدخول لإضافة تحديث');
+    if (!appUser) throw new Error('سجّل الدخول أولًا.');
     if (!text.trim()) return;
 
     const batch = writeBatch(db);
@@ -240,7 +234,7 @@ export function useObservations(roundId?: string) {
       await batch.commit();
     } catch (writeError) {
       console.error('Add observation comment failed:', writeError);
-      throw new Error('تعذر حفظ التحديث.');
+      throw new Error('لم يُحفظ التحديث. حاول مرة أخرى.');
     }
   };
 
@@ -280,15 +274,17 @@ export function useObservationUpdates(observationId?: string) {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        setUpdates(snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...(docSnap.data() as Omit<ObservationUpdate, 'id'>),
-        })));
+        setUpdates(
+          snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...(docSnap.data({ serverTimestamps: 'estimate' }) as Omit<ObservationUpdate, 'id'>),
+          }))
+        );
         setLoading(false);
       },
       (firestoreError) => {
         console.error('Observation updates subscription failed:', firestoreError);
-        setError('تعذر تحميل سجل التحديثات.');
+        setError('تعذر تحميل السجل.');
         setUpdates([]);
         setLoading(false);
       }

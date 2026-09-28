@@ -26,7 +26,6 @@ interface AuthContextType {
   createUserInSystem: (fullName: string, email: string, pass: string, role: UserRole) => Promise<void>;
   error: string | null;
   clearError: () => void;
-  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,18 +37,21 @@ const BOOTSTRAP_ADMIN_EMAIL = 'khalid.a.kh990@gmail.com';
 function mapAuthError(error: unknown) {
   const code = (error as { code?: string })?.code;
   if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
-    return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+    return 'البريد أو كلمة المرور غير صحيحة.';
+  }
+  if (code === 'auth/invalid-email') {
+    return 'البريد الإلكتروني غير صحيح.';
   }
   if (code === 'auth/too-many-requests') {
-    return 'تم إيقاف المحاولات مؤقتًا بسبب كثرة المحاولات. حاول لاحقًا.';
+    return 'محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.';
   }
   if (code === 'auth/network-request-failed') {
-    return 'تعذر الاتصال بخدمة تسجيل الدخول. تحقق من الإنترنت وحاول مرة أخرى.';
+    return 'لا يوجد اتصال. تحقق من الإنترنت وحاول مرة أخرى.';
   }
   if (code === 'auth/operation-not-allowed') {
-    return 'تسجيل الدخول بالبريد وكلمة المرور غير مفعّل في Firebase Authentication.';
+    return 'الدخول بالبريد غير مفعّل. تواصل مع مدير النظام.';
   }
-  return 'تعذر تسجيل الدخول. يرجى المحاولة مرة أخرى.';
+  return 'تعذر تسجيل الدخول. حاول مرة أخرى.';
 }
 
 async function loadProfile(firebaseUid: string, firebaseEmail: string | null): Promise<AppUser | null> {
@@ -103,14 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!profile) {
           await signOut(auth);
           setAppUser(null);
-          setError('الحساب موجود في Firebase Authentication لكنه غير مضاف للمستخدمين المصرح لهم في النظام.');
+          setError('هذا الحساب غير مضاف للنظام. تواصل مع مدير النظام.');
           return;
         }
 
         if (!profile.active) {
           await signOut(auth);
           setAppUser(null);
-          setError('تم تعطيل هذا الحساب من قبل الإدارة.');
+          setError('هذا الحساب معطّل. تواصل مع مدير النظام.');
           return;
         }
 
@@ -119,7 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {
         await signOut(auth).catch(() => undefined);
         setAppUser(null);
-        setError('تعذر تحميل صلاحيات المستخدم من قاعدة البيانات.');
+        setError('تعذر تحميل بيانات الحساب. حاول مرة أخرى.');
       } finally {
         setLoading(false);
       }
@@ -130,15 +132,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string) => {
     setError(null);
-    setLoading(true);
 
     try {
+      // Profile loading is handled by onAuthStateChanged. The form stays mounted on a failed
+      // attempt, so the typed email is kept.
       await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), pass);
-      // Profile loading is handled by onAuthStateChanged.
     } catch (authError) {
       const message = mapAuthError(authError);
       setError(message);
-      setLoading(false);
       throw new Error(message);
     }
   };
@@ -150,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: UserRole
   ) => {
     if (!appUser || appUser.role !== 'admin') {
-      throw new Error('هذه العملية متاحة لمدير النظام فقط.');
+      throw new Error('هذه العملية لمدير النظام فقط.');
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -181,13 +182,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (userError?.code === 'auth/email-already-in-use') {
-        throw new Error('البريد الإلكتروني مسجل مسبقًا في Firebase Authentication.');
+        throw new Error('هذا البريد مسجّل مسبقًا.');
+      }
+      if (userError?.code === 'auth/invalid-email') {
+        throw new Error('البريد الإلكتروني غير صحيح.');
       }
       if (userError?.code === 'auth/weak-password') {
-        throw new Error('كلمة المرور ضعيفة. استخدم كلمة مرور أقوى.');
+        throw new Error('كلمة المرور ضعيفة. استخدم 6 أحرف على الأقل.');
       }
 
-      throw new Error(userError?.message || 'تعذر إنشاء المستخدم.');
+      throw new Error('تعذر إنشاء المستخدم. حاول مرة أخرى.');
     } finally {
       await deleteApp(secondaryApp).catch(() => undefined);
     }
@@ -196,22 +200,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await signOut(auth);
     setAppUser(null);
-  };
-
-  const refreshUser = async () => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) {
-      setAppUser(null);
-      return;
-    }
-
-    const profile = await loadProfile(firebaseUser.uid, firebaseUser.email);
-    if (!profile || !profile.active) {
-      await logout();
-      return;
-    }
-
-    setAppUser(profile);
   };
 
   const isAdmin = appUser?.role === 'admin';
@@ -227,7 +215,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createUserInSystem,
         error,
         clearError: () => setError(null),
-        refreshUser,
       }}
     >
       {children}

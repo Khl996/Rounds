@@ -13,6 +13,11 @@ import { db } from '../firebase/config';
 import { LocationItem, CategoryItem } from '../types';
 import { seedInitialDataIfNeeded } from '../firebase/seed';
 
+// Firestore rejects `undefined` field values.
+function withoutUndefined<T extends object>(data: T): Partial<T> {
+  return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
+
 export function useMasterData() {
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -44,7 +49,7 @@ export function useMasterData() {
       },
       (firestoreError) => {
         console.error('Locations subscription failed:', firestoreError);
-        setError('تعذر تحميل المواقع من قاعدة البيانات.');
+        setError('تعذر تحميل المواقع.');
         locReady = true;
         markReady();
       }
@@ -62,7 +67,7 @@ export function useMasterData() {
       },
       (firestoreError) => {
         console.error('Categories subscription failed:', firestoreError);
-        setError('تعذر تحميل التصنيفات من قاعدة البيانات.');
+        setError('تعذر تحميل التصنيفات.');
         catReady = true;
         markReady();
       }
@@ -74,10 +79,10 @@ export function useMasterData() {
     };
   }, []);
 
-  const addLocation = async (data: Omit<LocationItem, 'id' | 'createdAt'>) => {
+  const addLocation = async (data: Omit<LocationItem, 'id' | 'createdAt' | 'active'>) => {
     try {
       await addDoc(collection(db, 'locations'), {
-        ...data,
+        ...withoutUndefined(data),
         active: true,
         createdAt: serverTimestamp(),
       });
@@ -87,23 +92,19 @@ export function useMasterData() {
     }
   };
 
-  const updateLocation = async (id: string, data: Partial<LocationItem>) => {
+  const updateLocation = async (id: string, data: Partial<Omit<LocationItem, 'id'>>) => {
     try {
-      await updateDoc(doc(db, 'locations', id), data);
+      await updateDoc(doc(db, 'locations', id), withoutUndefined(data));
     } catch (writeError) {
       console.error('Update location failed:', writeError);
-      throw new Error('تعذر تحديث الموقع.');
+      throw new Error('تعذر حفظ الموقع.');
     }
   };
 
-  const toggleLocationActive = async (id: string, currentActive: boolean) => {
-    await updateLocation(id, { active: !currentActive });
-  };
-
-  const addCategory = async (data: Omit<CategoryItem, 'id' | 'createdAt'>) => {
+  const addCategory = async (data: Omit<CategoryItem, 'id' | 'createdAt' | 'active'>) => {
     try {
       await addDoc(collection(db, 'categories'), {
-        ...data,
+        ...withoutUndefined(data),
         active: true,
         createdAt: serverTimestamp(),
       });
@@ -113,17 +114,21 @@ export function useMasterData() {
     }
   };
 
-  const updateCategory = async (id: string, data: Partial<CategoryItem>) => {
+  const updateCategory = async (id: string, data: Partial<Omit<CategoryItem, 'id'>>) => {
     try {
-      await updateDoc(doc(db, 'categories', id), data);
+      await updateDoc(doc(db, 'categories', id), withoutUndefined(data));
     } catch (writeError) {
       console.error('Update category failed:', writeError);
-      throw new Error('تعذر تحديث التصنيف.');
+      throw new Error('تعذر حفظ التصنيف.');
     }
   };
 
-  const toggleCategoryActive = async (id: string, currentActive: boolean) => {
-    await updateCategory(id, { active: !currentActive });
+  const seedDefaults = async () => {
+    try {
+      await seedInitialDataIfNeeded();
+    } catch {
+      throw new Error('تعذر إضافة القائمة الأساسية.');
+    }
   };
 
   return {
@@ -135,10 +140,10 @@ export function useMasterData() {
     error,
     addLocation,
     updateLocation,
-    toggleLocationActive,
     addCategory,
     updateCategory,
-    toggleCategoryActive,
-    seedNow: seedInitialDataIfNeeded,
+    seedDefaults,
   };
 }
+
+export type MasterData = ReturnType<typeof useMasterData>;
