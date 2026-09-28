@@ -6,6 +6,7 @@ import {
   orderBy,
   where,
   doc,
+  addDoc,
   serverTimestamp,
   increment,
   writeBatch,
@@ -114,19 +115,22 @@ export function useObservations(roundId?: string) {
       openCount: increment(1),
     });
 
-    if (actionTaken?.trim()) {
-      batch.set(doc(collection(db, 'observationUpdates')), {
-        observationId: newObsRef.id,
-        type: 'comment',
-        text: `إجراء مبدئي أثناء الجولة: ${actionTaken.trim()}`,
-        createdBy: appUser.id,
-        createdByName: appUser.fullName,
-        createdAt: serverTimestamp(),
-      });
-    }
-
     try {
       await batch.commit();
+
+      if (actionTaken?.trim()) {
+        await addDoc(collection(db, 'observationUpdates'), {
+          observationId: newObsRef.id,
+          type: 'comment',
+          text: `إجراء مبدئي أثناء الجولة: ${actionTaken.trim()}`,
+          createdBy: appUser.id,
+          createdByName: appUser.fullName,
+          createdAt: serverTimestamp(),
+        }).catch((err: unknown) => {
+          console.warn('Initial observation update log non-fatal error:', err);
+        });
+      }
+
       return newObsRef.id;
     } catch (writeError) {
       console.error('Add observation failed:', writeError);

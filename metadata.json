@@ -2,5 +2,7 @@
   "name": "جولات الصيانة",
   "description": "منظومة جولات الصيانة لتسجيل ومتابعة الملاحظات ومعالجتها وتصدير تقارير الجولات",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
