@@ -132,13 +132,13 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
           onClick={() => setStatusTab('resolved')}
           className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             statusTab === 'resolved'
-              ? 'bg-white text-emerald-900 shadow-2xs'
+              ? 'bg-white text-sky-900 shadow-2xs'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span className="w-2 h-2 rounded-full bg-sky-500"></span>
           <span>تمت المعالجة</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-900">
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-sky-100 text-sky-900">
             {resolvedCount}
           </span>
         </button>
@@ -155,7 +155,7 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="بحث في الملاحظة، الموقع، أو الإجراء..."
-              className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
             />
             {searchQuery && (
               <button
@@ -200,7 +200,7 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
               <select
                 value={filterLocation}
                 onChange={(e) => setFilterLocation(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
               >
                 <option value="">كافة المواقع</option>
                 {locations.map((loc) => (
@@ -217,7 +217,7 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
               >
                 <option value="">كافة التصنيفات</option>
                 {categories.map((cat) => (
@@ -234,7 +234,7 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
               <select
                 value={filterSupervisor}
                 onChange={(e) => setFilterSupervisor(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
               >
                 <option value="">كافة المشرفين</option>
                 {uniqueSupervisors.map((name) => (
@@ -288,8 +288,8 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
                           <span>مفتوحة</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
                           <span>تمت المعالجة</span>
                         </span>
                       )}
@@ -322,7 +322,7 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-100 text-xs text-slate-500">
                     <div className="flex items-center gap-3">
                       <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        <MapPin className="w-3.5 h-3.5 text-sky-600" />
                         {obs.locationName}
                       </span>
                       <span>•</span>
@@ -335,11 +335,11 @@ export const ObservationsListView: React.FC<ObservationsListViewProps> = ({
                     </div>
 
                     {!isOpen && obs.resolvedByName ? (
-                      <span className="text-emerald-700 font-bold text-[11px]">
+                      <span className="text-sky-700 font-bold text-[11px]">
                         عولجت بواسطة {obs.resolvedByName}
                       </span>
                     ) : (
-                      <span className="text-slate-400 text-[11px] group-hover:text-emerald-700 transition-colors font-bold">
+                      <span className="text-slate-400 text-[11px] group-hover:text-sky-700 transition-colors font-bold">
                         متابعة وتحديث ←
                       </span>
                     )}
