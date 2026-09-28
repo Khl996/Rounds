@@ -5,39 +5,18 @@ import {
   query,
   orderBy,
   where,
-  addDoc,
-  updateDoc,
   doc,
   serverTimestamp,
   increment,
   writeBatch,
-  getDocs,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Observation, ObservationUpdate, LocationItem, CategoryItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
-function getStoredObservations(): Observation[] {
-  try {
-    const cached = localStorage.getItem('sr_obs_cache');
-    return cached ? JSON.parse(cached) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredObservations(list: Observation[]) {
-  try {
-    localStorage.setItem('sr_obs_cache', JSON.stringify(list));
-  } catch {}
-}
-
 export function useObservations(roundId?: string) {
   const { appUser } = useAuth();
-  const [observations, setObservations] = useState<Observation[]>(() => {
-    const all = getStoredObservations();
-    return roundId ? all.filter((o) => o.roundId === roundId) : all;
-  });
+  const [observations, setObservations] = useState<Observation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,64 +24,59 @@ export function useObservations(roundId?: string) {
     if (!appUser) {
       setObservations([]);
       setLoading(false);
+      setError(null);
       return;
     }
 
-    try {
-      let q;
-      if (roundId) {
-        q = query(
+    setLoading(true);
+    setError(null);
+
+    const q = roundId
+      ? query(
           collection(db, 'observations'),
           where('roundId', '==', roundId),
           orderBy('createdAt', 'asc')
-        );
-      } else {
-        q = query(collection(db, 'observations'), orderBy('createdAt', 'desc'));
+        )
+      : query(collection(db, 'observations'), orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: Observation[] = snapshot.docs.map((docSnap, index) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            orderNumber: data.orderNumber || index + 1,
+            roundId: data.roundId,
+            locationId: data.locationId,
+            locationName: data.locationName || '',
+            categoryId: data.categoryId,
+            categoryName: data.categoryName || '',
+            description: data.description || '',
+            actionTaken: data.actionTaken || '',
+            status: data.status || 'open',
+            createdBy: data.createdBy,
+            createdByName: data.createdByName || '',
+            createdAt: data.createdAt,
+            resolvedBy: data.resolvedBy,
+            resolvedByName: data.resolvedByName,
+            resolvedAt: data.resolvedAt,
+            updatedAt: data.updatedAt,
+          };
+        });
+
+        setObservations(list);
+        setLoading(false);
+      },
+      (firestoreError) => {
+        console.error('Observations subscription failed:', firestoreError);
+        setError('تعذر تحميل الملاحظات من قاعدة البيانات.');
+        setObservations([]);
+        setLoading(false);
       }
+    );
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          if (!snapshot.empty) {
-            const list: Observation[] = snapshot.docs.map((docSnap, index) => {
-              const data = docSnap.data();
-              return {
-                id: docSnap.id,
-                orderNumber: data.orderNumber || index + 1,
-                roundId: data.roundId,
-                locationId: data.locationId,
-                locationName: data.locationName || '',
-                categoryId: data.categoryId,
-                categoryName: data.categoryName || '',
-                description: data.description || '',
-                actionTaken: data.actionTaken || '',
-                status: data.status || 'open',
-                createdBy: data.createdBy,
-                createdByName: data.createdByName || '',
-                createdAt: data.createdAt,
-                resolvedBy: data.resolvedBy,
-                resolvedByName: data.resolvedByName,
-                resolvedAt: data.resolvedAt,
-                updatedAt: data.updatedAt,
-              };
-            });
-            setObservations(list);
-            saveStoredObservations(list);
-          }
-          setLoading(false);
-        },
-        () => {
-          // Fallback to local cache
-          const all = getStoredObservations();
-          setObservations(roundId ? all.filter((o) => o.roundId === roundId) : all);
-          setLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch {
-      setLoading(false);
-    }
+    return () => unsubscribe();
   }, [appUser, roundId]);
 
   const addObservation = async (
@@ -113,12 +87,13 @@ export function useObservations(roundId?: string) {
     actionTaken?: string
   ): Promise<string> => {
     if (!appUser) throw new Error('يجب تسجيل الدخول لإضافة ملاحظة');
+    if (!description.trim()) throw new Error('اكتب الملاحظة قبل الحفظ.');
 
-    const localId = `obs_${Date.now()}`;
     const nextOrder = observations.filter((o) => o.roundId === targetRoundId).length + 1;
+    const batch = writeBatch(db);
+    const newObsRef = doc(collection(db, 'observations'));
 
-    const newObs: Observation = {
-      id: localId,
+    batch.set(newObsRef, {
       roundId: targetRoundId,
       orderNumber: nextOrder,
       locationId: location.id,
@@ -130,63 +105,33 @@ export function useObservations(roundId?: string) {
       status: 'open',
       createdBy: appUser.id,
       createdByName: appUser.fullName,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
 
-    try {
-      const batch = writeBatch(db);
-      const obsCol = collection(db, 'observations');
-      const newObsRef = doc(obsCol);
-      newObs.id = newObsRef.id;
+    batch.update(doc(db, 'rounds', targetRoundId), {
+      observationCount: increment(1),
+      openCount: increment(1),
+    });
 
-      batch.set(newObsRef, {
-        roundId: targetRoundId,
-        orderNumber: nextOrder,
-        locationId: location.id,
-        locationName: location.name,
-        categoryId: category.id,
-        categoryName: category.name,
-        description: description.trim(),
-        actionTaken: actionTaken?.trim() || '',
-        status: 'open',
+    if (actionTaken?.trim()) {
+      batch.set(doc(collection(db, 'observationUpdates')), {
+        observationId: newObsRef.id,
+        type: 'comment',
+        text: `إجراء مبدئي أثناء الجولة: ${actionTaken.trim()}`,
         createdBy: appUser.id,
         createdByName: appUser.fullName,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       });
-
-      const roundRef = doc(db, 'rounds', targetRoundId);
-      batch.update(roundRef, {
-        observationCount: increment(1),
-        openCount: increment(1),
-      });
-
-      if (actionTaken && actionTaken.trim()) {
-        const updateRef = doc(collection(db, 'observationUpdates'));
-        batch.set(updateRef, {
-          observationId: newObsRef.id,
-          type: 'comment',
-          text: `إجراء مبدئي أثناء الجولة: ${actionTaken.trim()}`,
-          createdBy: appUser.id,
-          createdByName: appUser.fullName,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      await batch.commit();
-    } catch {
-      // Local fallback handled smoothly
     }
 
-    setObservations((prev) => {
-      const updated = [newObs, ...prev];
-      const allCached = getStoredObservations();
-      saveStoredObservations([newObs, ...allCached.filter((o) => o.id !== newObs.id)]);
-      return updated;
-    });
-
-    return newObs.id;
+    try {
+      await batch.commit();
+      return newObsRef.id;
+    } catch (writeError) {
+      console.error('Add observation failed:', writeError);
+      throw new Error('تعذر حفظ الملاحظة في قاعدة البيانات.');
+    }
   };
 
   const resolveObservation = async (
@@ -196,60 +141,37 @@ export function useObservations(roundId?: string) {
   ): Promise<void> => {
     if (!appUser) throw new Error('يجب تسجيل الدخول لمعالجة الملاحظة');
 
-    try {
-      const batch = writeBatch(db);
-      const obsRef = doc(db, 'observations', obsId);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'observations', obsId), {
+      status: 'resolved',
+      resolvedBy: appUser.id,
+      resolvedByName: appUser.fullName,
+      resolvedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
 
-      batch.update(obsRef, {
-        status: 'resolved',
-        resolvedBy: appUser.id,
-        resolvedByName: appUser.fullName,
-        resolvedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+    batch.set(doc(collection(db, 'observationUpdates')), {
+      observationId: obsId,
+      type: 'resolved',
+      text: resolutionNote?.trim() || 'تمت معالجة الملاحظة والتأكد من سلامة الموقع',
+      createdBy: appUser.id,
+      createdByName: appUser.fullName,
+      createdAt: serverTimestamp(),
+    });
+
+    if (targetRoundId) {
+      batch.update(doc(db, 'rounds', targetRoundId), {
+        openCount: increment(-1),
+        resolvedCount: increment(1),
       });
-
-      const updateRef = doc(collection(db, 'observationUpdates'));
-      batch.set(updateRef, {
-        observationId: obsId,
-        type: 'resolved',
-        text: resolutionNote?.trim() || 'تمت معالجة الملاحظة والتأكد من سلامة الموقع',
-        createdBy: appUser.id,
-        createdByName: appUser.fullName,
-        createdAt: serverTimestamp(),
-      });
-
-      if (targetRoundId) {
-        const roundRef = doc(db, 'rounds', targetRoundId);
-        batch.update(roundRef, {
-          openCount: increment(-1),
-          resolvedCount: increment(1),
-        });
-      }
-
-      await batch.commit();
-    } catch {
-      // Local fallback
     }
 
-    setObservations((prev) => {
-      const updated = prev.map((o) =>
-        o.id === obsId
-          ? {
-              ...o,
-              status: 'resolved' as const,
-              resolvedBy: appUser.id,
-              resolvedByName: appUser.fullName,
-              resolvedAt: new Date(),
-              updatedAt: new Date(),
-            }
-          : o
-      );
-      const allCached = getStoredObservations();
-      saveStoredObservations(
-        allCached.map((o) => (o.id === obsId ? { ...o, status: 'resolved' as const, resolvedByName: appUser.fullName } : o))
-      );
-      return updated;
-    });
+    try {
+      await batch.commit();
+    } catch (writeError) {
+      console.error('Resolve observation failed:', writeError);
+      throw new Error('تعذر حفظ معالجة الملاحظة.');
+    }
   };
 
   const reopenObservation = async (
@@ -259,87 +181,62 @@ export function useObservations(roundId?: string) {
   ): Promise<void> => {
     if (!appUser) throw new Error('يجب تسجيل الدخول لإعادة فتح الملاحظة');
 
-    try {
-      const batch = writeBatch(db);
-      const obsRef = doc(db, 'observations', obsId);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'observations', obsId), {
+      status: 'open',
+      resolvedBy: null,
+      resolvedByName: null,
+      resolvedAt: null,
+      updatedAt: serverTimestamp(),
+    });
 
-      batch.update(obsRef, {
-        status: 'open',
-        resolvedBy: null,
-        resolvedByName: null,
-        resolvedAt: null,
-        updatedAt: serverTimestamp(),
+    batch.set(doc(collection(db, 'observationUpdates')), {
+      observationId: obsId,
+      type: 'reopened',
+      text: reopenReason?.trim() || 'تمت إعادة فتح الملاحظة لمتابعة المعالجة',
+      createdBy: appUser.id,
+      createdByName: appUser.fullName,
+      createdAt: serverTimestamp(),
+    });
+
+    if (targetRoundId) {
+      batch.update(doc(db, 'rounds', targetRoundId), {
+        openCount: increment(1),
+        resolvedCount: increment(-1),
       });
-
-      const updateRef = doc(collection(db, 'observationUpdates'));
-      batch.set(updateRef, {
-        observationId: obsId,
-        type: 'reopened',
-        text: reopenReason?.trim() || 'تمت إعادة فتح الملاحظة لمتابعة المعالجة',
-        createdBy: appUser.id,
-        createdByName: appUser.fullName,
-        createdAt: serverTimestamp(),
-      });
-
-      if (targetRoundId) {
-        const roundRef = doc(db, 'rounds', targetRoundId);
-        batch.update(roundRef, {
-          openCount: increment(1),
-          resolvedCount: increment(-1),
-        });
-      }
-
-      await batch.commit();
-    } catch {
-      // Local fallback
     }
 
-    setObservations((prev) => {
-      const updated = prev.map((o) =>
-        o.id === obsId
-          ? {
-              ...o,
-              status: 'open' as const,
-              resolvedBy: undefined,
-              resolvedByName: undefined,
-              resolvedAt: undefined,
-              updatedAt: new Date(),
-            }
-          : o
-      );
-      const allCached = getStoredObservations();
-      saveStoredObservations(
-        allCached.map((o) => (o.id === obsId ? { ...o, status: 'open' as const } : o))
-      );
-      return updated;
-    });
+    try {
+      await batch.commit();
+    } catch (writeError) {
+      console.error('Reopen observation failed:', writeError);
+      throw new Error('تعذر إعادة فتح الملاحظة.');
+    }
   };
 
   const addComment = async (obsId: string, text: string): Promise<void> => {
     if (!appUser) throw new Error('يجب تسجيل الدخول لإضافة تحديث');
     if (!text.trim()) return;
 
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, 'observationUpdates')), {
+      observationId: obsId,
+      type: 'comment',
+      text: text.trim(),
+      createdBy: appUser.id,
+      createdByName: appUser.fullName,
+      createdAt: serverTimestamp(),
+    });
+
+    batch.update(doc(db, 'observations', obsId), {
+      updatedAt: serverTimestamp(),
+    });
+
     try {
-      const batch = writeBatch(db);
-      const updateRef = doc(collection(db, 'observationUpdates'));
-
-      batch.set(updateRef, {
-        observationId: obsId,
-        type: 'comment',
-        text: text.trim(),
-        createdBy: appUser.id,
-        createdByName: appUser.fullName,
-        createdAt: serverTimestamp(),
-      });
-
-      const obsRef = doc(db, 'observations', obsId);
-      batch.update(obsRef, {
-        updatedAt: serverTimestamp(),
-      });
-
       await batch.commit();
-    } catch {
-      // Local fallback
+    } catch (writeError) {
+      console.error('Add observation comment failed:', writeError);
+      throw new Error('تعذر حفظ التحديث.');
     }
   };
 
@@ -357,42 +254,44 @@ export function useObservations(roundId?: string) {
 export function useObservationUpdates(observationId?: string) {
   const [updates, setUpdates] = useState<ObservationUpdate[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!observationId) {
       setUpdates([]);
       setLoading(false);
+      setError(null);
       return;
     }
 
     setLoading(true);
-    try {
-      const q = query(
-        collection(db, 'observationUpdates'),
-        where('observationId', '==', observationId),
-        orderBy('createdAt', 'asc')
-      );
+    setError(null);
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: ObservationUpdate[] = snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<ObservationUpdate, 'id'>),
-          }));
-          setUpdates(list);
-          setLoading(false);
-        },
-        () => {
-          setLoading(false);
-        }
-      );
+    const q = query(
+      collection(db, 'observationUpdates'),
+      where('observationId', '==', observationId),
+      orderBy('createdAt', 'asc')
+    );
 
-      return () => unsubscribe();
-    } catch {
-      setLoading(false);
-    }
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setUpdates(snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<ObservationUpdate, 'id'>),
+        })));
+        setLoading(false);
+      },
+      (firestoreError) => {
+        console.error('Observation updates subscription failed:', firestoreError);
+        setError('تعذر تحميل سجل التحديثات.');
+        setUpdates([]);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, [observationId]);
 
-  return { updates, loading };
+  return { updates, loading, error };
 }
