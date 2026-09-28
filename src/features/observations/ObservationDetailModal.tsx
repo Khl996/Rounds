@@ -114,7 +114,7 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
               className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
                 isOpen
                   ? 'bg-amber-100 text-amber-800'
-                  : 'bg-emerald-100 text-emerald-800'
+                  : 'bg-sky-100 text-sky-800'
               }`}
             >
               #{observation.orderNumber || 1}
@@ -127,7 +127,7 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
                     مفتوحة
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
                     تمت المعالجة
                   </span>
                 )}
@@ -155,7 +155,7 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
           {/* Meta Tags */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-bold">
-              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+              <MapPin className="w-3.5 h-3.5 text-sky-600" />
               {observation.locationName}
             </span>
             <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-bold">
@@ -184,11 +184,11 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
 
           {/* If Resolved, show resolved banner */}
           {!isOpen && (
-            <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2.5">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="p-3.5 bg-sky-50 rounded-xl border border-sky-200 text-xs text-sky-900 flex items-start gap-2.5">
+              <CheckCircle2 className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold text-sm">تمت معالجة هذه الملاحظة بنجاح</p>
-                <p className="text-emerald-700 mt-0.5">
+                <p className="text-sky-700 mt-0.5">
                   بواسطة: <strong>{observation.resolvedByName || 'المشرف'}</strong> بتاريخ{' '}
                   {formatDateTimeArabic(observation.resolvedAt)}
                 </p>
@@ -217,7 +217,7 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
 
                   if (up.type === 'resolved') {
                     badge = 'تمت المعالجة';
-                    badgeClass = 'bg-emerald-100 text-emerald-800 font-bold';
+                    badgeClass = 'bg-sky-100 text-sky-800 font-bold';
                   } else if (up.type === 'reopened') {
                     badge = 'إعادة فتح';
                     badgeClass = 'bg-rose-100 text-rose-800 font-bold';
@@ -259,7 +259,7 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="«مثال: تم التنسيق مع فني الصيانة للمباشرة الآن»"
-                  className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                 />
                 <button
                   type="submit"
@@ -275,9 +275,9 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
 
           {/* Action Resolve Form */}
           {mode === 'resolve' && (
-            <form onSubmit={handleResolve} className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2.5">
+            <form onSubmit={handleResolve} className="p-3 bg-sky-50/70 border border-sky-200 rounded-xl space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-900">تأكيد معالجة الملاحظة</span>
+                <span className="text-xs font-bold text-sky-900">تأكيد معالجة الملاحظة</span>
                 <button
                   type="button"
                   onClick={() => setMode('view')}
@@ -292,12 +292,12 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
                 value={resolutionText}
                 onChange={(e) => setResolutionText(e.target.value)}
                 placeholder="«مثال: تم تغيير اللمبة واختبارها والإنارة تعمل بكفاءة»"
-                className="w-full px-3 py-2 rounded-xl border border-emerald-300 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 bg-white"
+                className="w-full px-3 py-2 rounded-xl border border-sky-300 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-white"
               />
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Check className="w-4 h-4" />
                 <span>حفظ واعتماد المعالجة</span>
@@ -345,7 +345,7 @@ export const ObservationDetailModal: React.FC<ObservationDetailModalProps> = ({
               type="button"
               onClick={() => setMode('resolve')}
               disabled={mode === 'resolve'}
-              className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              className="flex-1 py-2.5 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>تمت المعالجة</span>
