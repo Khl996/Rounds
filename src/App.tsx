@@ -144,9 +144,14 @@ function AuthenticatedApp({ user }: { user: AppUser }) {
         ) : tab === 'observations' ? (
           <ObservationsView
             observations={observations}
+            locations={master.activeLocations}
+            categories={master.activeCategories}
             loading={observationsLoading}
             error={observationsError}
             onOpenObservation={setObservationId}
+            onAddDirectObservation={async (location, category, description, actionTaken) => {
+              await addObservation(null, location, category, description, actionTaken);
+            }}
           />
         ) : tab === 'admin' && isAdmin ? (
           <AdminManagementView master={master} />
@@ -163,6 +168,7 @@ function AuthenticatedApp({ user }: { user: AppUser }) {
             onResumeRound={resumeRound}
             onOpenRound={(roundId) => setScreen({ kind: 'round', roundId })}
             onOpenObservations={() => changeTab('observations')}
+            onAddObservation={() => changeTab('observations')}
           />
         )}
       </main>

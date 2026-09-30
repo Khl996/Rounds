@@ -1,8 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
-import { Observation } from '../../types';
+import { Plus, Search } from 'lucide-react';
+import { CategoryItem, LocationItem, Observation } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../../components/ui/Button';
 import { Segmented } from '../../components/ui/Segmented';
+import { useToast } from '../../components/ui/Toast';
 import { ObservationRow } from './ObservationRow';
+import { AddObservationSheet } from '../rounds/AddObservationSheet';
 import { dayKey, formatDayLabel, normalizeArabic } from '../../utils/formatters';
 
 type StatusTab = 'open' | 'resolved' | 'all';
@@ -10,16 +14,36 @@ type StatusTab = 'open' | 'resolved' | 'all';
 interface ObservationsViewProps {
   /** Newest first. */
   observations: Observation[];
+  locations: LocationItem[];
+  categories: CategoryItem[];
   loading: boolean;
   error: string | null;
   onOpenObservation: (id: string) => void;
+  onAddDirectObservation?: (
+    location: LocationItem,
+    category: CategoryItem,
+    description: string,
+    actionTaken?: string
+  ) => Promise<void>;
 }
 
 /** The follow-up queue: what still needs attention. */
-export const ObservationsView: React.FC<ObservationsViewProps> = ({ observations, loading, error, onOpenObservation }) => {
+export const ObservationsView: React.FC<ObservationsViewProps> = ({
+  observations,
+  locations,
+  categories,
+  loading,
+  error,
+  onOpenObservation,
+  onAddDirectObservation,
+}) => {
+  const { appUser } = useAuth();
+  const showToast = useToast();
   const [tab, setTab] = useState<StatusTab>('open');
   const [search, setSearch] = useState('');
+  const [adding, setAdding] = useState(false);
 
+  const canAdd = appUser?.role === 'admin' || appUser?.role === 'management';
   const openCount = useMemo(() => observations.filter((o) => o.status === 'open').length, [observations]);
 
   const groups = useMemo(() => {
@@ -50,7 +74,15 @@ export const ObservationsView: React.FC<ObservationsViewProps> = ({ observations
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-28 sm:pb-12">
-      <h1 className="text-xl font-bold text-slate-900">الملاحظات</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-slate-900">الملاحظات</h1>
+        {canAdd && (
+          <Button size="sm" onClick={() => setAdding(true)}>
+            <Plus className="size-4" strokeWidth={2.5} />
+            إضافة ملاحظة
+          </Button>
+        )}
+      </div>
 
       <Segmented
         className="mt-4"
@@ -95,6 +127,19 @@ export const ObservationsView: React.FC<ObservationsViewProps> = ({ observations
             </div>
           </section>
         ))
+      )}
+
+      {adding && onAddDirectObservation && (
+        <AddObservationSheet
+          locations={locations}
+          categories={categories}
+          onClose={() => setAdding(false)}
+          onSave={async (location, category, description, actionTaken) => {
+            await onAddDirectObservation(location, category, description, actionTaken);
+            setAdding(false);
+            showToast('تم الحفظ');
+          }}
+        />
       )}
     </div>
   );

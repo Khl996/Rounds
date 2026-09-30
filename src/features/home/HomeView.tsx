@@ -18,6 +18,7 @@ interface HomeViewProps {
   onResumeRound: () => void;
   onOpenRound: (roundId: string) => void;
   onOpenObservations: () => void;
+  onAddObservation?: () => void;
 }
 
 const PAGE_SIZE = 5;
@@ -34,10 +35,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onResumeRound,
   onOpenRound,
   onOpenObservations,
+  onAddObservation,
 }) => {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const history = rounds.filter((r) => r.id !== activeRound?.id);
   const activeCount = activeRound ? countsByRound.get(activeRound.id)?.total ?? 0 : 0;
+  const isManagement = user.role === 'management';
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 pb-28 sm:pb-12">
@@ -50,6 +53,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="mt-5">
         {loading ? (
           <div className="h-14 rounded-2xl bg-slate-200/60" aria-hidden="true" />
+        ) : isManagement ? (
+          <Button size="lg" full onClick={onAddObservation || onOpenObservations}>
+            <Plus className="size-5" strokeWidth={2.5} />
+            إضافة ملاحظة
+          </Button>
         ) : activeRound ? (
           <section className="rounded-3xl bg-sky-600 p-5 text-white">
             <p className="text-sm text-sky-100">جولتك مستمرة</p>

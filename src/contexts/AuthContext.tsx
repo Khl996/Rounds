@@ -21,9 +21,17 @@ interface AuthContextType {
   appUser: AppUser | null;
   loading: boolean;
   isAdmin: boolean;
-  login: (email: string, pass: string) => Promise<void>;
+  isManagement: boolean;
+  isSupervisor: boolean;
+  login: (identifier: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
-  createUserInSystem: (fullName: string, email: string, pass: string, role: UserRole) => Promise<void>;
+  createUserInSystem: (
+    fullName: string,
+    emailOrUsername: string,
+    pass: string,
+    role: UserRole,
+    username?: string
+  ) => Promise<void>;
   error: string | null;
   clearError: () => void;
 }
@@ -74,11 +82,21 @@ async function loadProfile(firebaseUid: string, firebaseEmail: string | null): P
   if (!userDoc.exists()) return null;
 
   const data = userDoc.data();
+  const emailVal = data.email || firebaseEmail || '';
+  const usernameVal =
+    data.username ||
+    (emailVal.endsWith('@rounds.app') ? emailVal.replace('@rounds.app', '') : undefined);
+
+  let mappedRole: UserRole = 'supervisor';
+  if (data.role === 'admin') mappedRole = 'admin';
+  else if (data.role === 'management') mappedRole = 'management';
+
   return {
     id: firebaseUid,
     fullName: data.fullName || 'المستخدم',
-    email: data.email || firebaseEmail || '',
-    role: data.role === 'admin' ? 'admin' : 'supervisor',
+    email: emailVal,
+    username: usernameVal,
+    role: mappedRole,
     active: data.active === true,
     createdAt: data.createdAt,
   };
@@ -130,13 +148,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, pass: string) => {
+  const login = async (identifier: string, pass: string) => {
     setError(null);
+
+    const trimmed = identifier.trim().toLowerCase();
+    const emailToUse = trimmed.includes('@') ? trimmed : `${trimmed}@rounds.app`;
 
     try {
       // Profile loading is handled by onAuthStateChanged. The form stays mounted on a failed
-      // attempt, so the typed email is kept.
-      await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), pass);
+      // attempt, so the typed email/username is kept.
+      await signInWithEmailAndPassword(auth, emailToUse, pass);
     } catch (authError) {
       const message = mapAuthError(authError);
       setError(message);
@@ -146,15 +167,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const createUserInSystem = async (
     fullName: string,
-    email: string,
+    emailOrUsername: string,
     pass: string,
-    role: UserRole
+    role: UserRole,
+    customUsername?: string
   ) => {
     if (!appUser || appUser.role !== 'admin') {
       throw new Error('هذه العملية لمدير النظام فقط.');
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const trimmedInput = emailOrUsername.trim().toLowerCase();
+    const normalizedEmail = trimmedInput.includes('@')
+      ? trimmedInput
+      : `${trimmedInput}@rounds.app`;
+
+    const username =
+      customUsername?.trim().toLowerCase() ||
+      (!trimmedInput.includes('@') ? trimmedInput : undefined);
+
     const secondaryApp = initializeApp(
       getActiveFirebaseConfig(),
       `user-provisioning-${Date.now()}`
@@ -166,14 +196,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const credential = await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, pass);
       createdUser = credential.user;
 
-      await setDoc(doc(db, 'users', createdUser.uid), {
+      const profilePayload: Record<string, unknown> = {
         id: createdUser.uid,
         fullName: fullName.trim(),
         email: normalizedEmail,
         role,
         active: true,
         createdAt: serverTimestamp(),
-      });
+      };
+
+      if (username) {
+        profilePayload.username = username;
+      }
+
+      await setDoc(doc(db, 'users', createdUser.uid), profilePayload);
 
       await signOut(secondaryAuth);
     } catch (userError: any) {
@@ -182,10 +218,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (userError?.code === 'auth/email-already-in-use') {
-        throw new Error('هذا البريد مسجّل مسبقًا.');
+        throw new Error('هذا الحساب أو اسم المستخدم مسجّل مسبقًا.');
       }
       if (userError?.code === 'auth/invalid-email') {
-        throw new Error('البريد الإلكتروني غير صحيح.');
+        throw new Error('اسم المستخدم أو البريد غير صحيح.');
       }
       if (userError?.code === 'auth/weak-password') {
         throw new Error('كلمة المرور ضعيفة. استخدم 6 أحرف على الأقل.');
@@ -203,6 +239,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = appUser?.role === 'admin';
+  const isManagement = appUser?.role === 'management';
+  const isSupervisor = appUser?.role === 'supervisor';
 
   return (
     <AuthContext.Provider
@@ -210,6 +248,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         appUser,
         loading,
         isAdmin,
+        isManagement,
+        isSupervisor,
         login,
         logout,
         createUserInSystem,

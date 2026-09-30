@@ -20,6 +20,7 @@ type Editing =
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'supervisor', label: 'مشرف' },
+  { value: 'management', label: 'إدارة' },
   { value: 'admin', label: 'مدير' },
 ];
 
@@ -92,19 +93,28 @@ export const AdminManagementView: React.FC<{ master: MasterData }> = ({ master }
       ) : (
         <div className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           {tab === 'users' &&
-            users.map((user) => (
-              <AdminRow
-                key={user.id}
-                title={user.id === appUser?.id ? `${user.fullName} (أنت)` : user.fullName}
-                subtitle={
-                  <>
-                    {user.role === 'admin' ? 'مدير' : 'مشرف'} · <span dir="ltr">{user.email}</span>
-                  </>
-                }
-                inactive={!user.active}
-                onClick={() => setEditing({ kind: 'user', item: user })}
-              />
-            ))}
+            users.map((user) => {
+              const roleLabel =
+                user.role === 'admin' ? 'مدير' : user.role === 'management' ? 'إدارة' : 'مشرف';
+              const displayIdentifier =
+                user.username ||
+                (user.email.endsWith('@rounds.app')
+                  ? user.email.replace('@rounds.app', '')
+                  : user.email);
+              return (
+                <AdminRow
+                  key={user.id}
+                  title={user.id === appUser?.id ? `${user.fullName} (أنت)` : user.fullName}
+                  subtitle={
+                    <>
+                      {roleLabel} · <span dir="ltr">{displayIdentifier}</span>
+                    </>
+                  }
+                  inactive={!user.active}
+                  onClick={() => setEditing({ kind: 'user', item: user })}
+                />
+              );
+            })}
           {tab === 'locations' &&
             master.locations.map((loc) => (
               <AdminRow
@@ -232,7 +242,7 @@ const UserSheet: React.FC<{
   const { createUserInSystem } = useAuth();
   const showToast = useToast();
   const [fullName, setFullName] = useState(user?.fullName ?? '');
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>(user?.role ?? 'supervisor');
 
@@ -242,9 +252,9 @@ const UserSheet: React.FC<{
       await updateUser(user.id, { fullName: fullName.trim(), ...(isSelf ? {} : { role }) });
       showToast('تم الحفظ');
     } else {
-      if (!email.trim()) throw new Error('اكتب البريد الإلكتروني.');
+      if (!identifier.trim()) throw new Error('اكتب اسم المستخدم.');
       if (password.length < 6) throw new Error('كلمة المرور 6 أحرف على الأقل.');
-      await createUserInSystem(fullName.trim(), email.trim(), password, role);
+      await createUserInSystem(fullName.trim(), identifier.trim(), password, role);
       showToast('أُضيف المستخدم');
     }
     onClose();
@@ -262,6 +272,13 @@ const UserSheet: React.FC<{
         }
       : undefined;
 
+  const displayIdentifier = user
+    ? user.username ||
+      (user.email.endsWith('@rounds.app')
+        ? user.email.replace('@rounds.app', '')
+        : user.email)
+    : '';
+
   return (
     <EditSheet title={user ? 'تعديل المستخدم' : 'مستخدم جديد'} onClose={onClose} onSave={save} toggle={toggle}>
       <Field label="الاسم">
@@ -269,20 +286,23 @@ const UserSheet: React.FC<{
       </Field>
       {user ? (
         <div>
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">البريد الإلكتروني</span>
+          <span className="mb-1.5 block text-sm font-medium text-slate-700">اسم المستخدم</span>
           <p className="text-slate-600" dir="ltr">
-            {user.email}
+            {displayIdentifier}
           </p>
         </div>
       ) : (
         <>
-          <Field label="البريد الإلكتروني">
+          <Field label="اسم المستخدم">
             <input
-              type="email"
+              type="text"
               dir="ltr"
               autoComplete="off"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="مثال: ali أو البريد"
               className={`${inputClass} text-left`}
             />
           </Field>

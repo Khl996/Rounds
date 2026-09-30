@@ -12,6 +12,7 @@ export interface RoundCounts {
 export function groupByRound(observations: Observation[]): Map<string, RoundCounts> {
   const map = new Map<string, RoundCounts>();
   for (const obs of observations) {
+    if (!obs.roundId) continue;
     let entry = map.get(obs.roundId);
     if (!entry) {
       entry = { list: [], total: 0, open: 0 };

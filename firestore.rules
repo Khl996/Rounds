@@ -83,22 +83,34 @@ service cloud.firestore {
       allow create: if isActive()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.status == 'open'
-        && exists(/databases/$(database)/documents/rounds/$(request.resource.data.roundId))
         && (
-          get(/databases/$(database)/documents/rounds/$(request.resource.data.roundId)).data.supervisorId == request.auth.uid
-          || isAdmin()
-        )
-        && get(/databases/$(database)/documents/rounds/$(request.resource.data.roundId)).data.status == 'in_progress';
+          (
+            request.resource.data.get('roundId', null) != null
+            && request.resource.data.roundId is string
+            && exists(/databases/$(database)/documents/rounds/$(request.resource.data.roundId))
+            && (
+              get(/databases/$(database)/documents/rounds/$(request.resource.data.roundId)).data.supervisorId == request.auth.uid
+              || isAdmin()
+            )
+            && get(/databases/$(database)/documents/rounds/$(request.resource.data.roundId)).data.status == 'in_progress'
+          )
+          ||
+          (
+            request.resource.data.get('roundId', null) == null
+            && userDoc().data.role in ['management', 'admin']
+          )
+        );
 
       allow update: if isActive()
-        && request.resource.data.roundId == resource.data.roundId
+        && userDoc().data.role in ['admin', 'supervisor']
+        && request.resource.data.get('roundId', null) == resource.data.get('roundId', null)
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.locationId == resource.data.locationId
         && request.resource.data.categoryId == resource.data.categoryId
         && request.resource.data.description == resource.data.description
         && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'resolvedBy', 'resolvedByName', 'resolvedAt', 'updatedAt']);
+            .hasOnly(['status', 'resolvedBy', 'resolvedByName', 'resolvedAt', 'resolvedDuringRoundId', 'updatedAt']);
 
       allow delete: if false;
     }
@@ -109,6 +121,10 @@ service cloud.firestore {
       allow create: if isActive()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.type in ['comment', 'resolved', 'reopened']
+        && (
+          request.resource.data.type == 'comment'
+          || userDoc().data.role in ['admin', 'supervisor']
+        )
         && exists(/databases/$(database)/documents/observations/$(request.resource.data.observationId));
 
       allow update, delete: if false;

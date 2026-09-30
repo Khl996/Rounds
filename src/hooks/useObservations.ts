@@ -79,7 +79,7 @@ export function useObservations() {
   }, [appUser]);
 
   const addObservation = async (
-    targetRoundId: string,
+    targetRoundId: string | null | undefined,
     location: LocationItem,
     category: CategoryItem,
     description: string,
@@ -88,13 +88,17 @@ export function useObservations() {
     if (!appUser) throw new Error('سجّل الدخول أولًا.');
     if (!description.trim()) throw new Error('اكتب الملاحظة.');
 
-    const nextOrder = observations.filter((o) => o.roundId === targetRoundId).length + 1;
+    const isDirect = !targetRoundId;
     const batch = writeBatch(db);
     const newObsRef = doc(collection(db, 'observations'));
 
-    batch.set(newObsRef, {
-      roundId: targetRoundId,
-      orderNumber: nextOrder,
+    const nextOrder = !isDirect
+      ? observations.filter((o) => o.roundId === targetRoundId).length + 1
+      : undefined;
+
+    const payload: Record<string, unknown> = {
+      roundId: targetRoundId || null,
+      source: isDirect ? 'management' : 'round',
       locationId: location.id,
       locationName: location.name,
       categoryId: category.id,
@@ -106,12 +110,20 @@ export function useObservations() {
       createdByName: appUser.fullName,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
 
-    batch.update(doc(db, 'rounds', targetRoundId), {
-      observationCount: increment(1),
-      openCount: increment(1),
-    });
+    if (nextOrder !== undefined) {
+      payload.orderNumber = nextOrder;
+    }
+
+    batch.set(newObsRef, payload);
+
+    if (!isDirect && targetRoundId) {
+      batch.update(doc(db, 'rounds', targetRoundId), {
+        observationCount: increment(1),
+        openCount: increment(1),
+      });
+    }
 
     try {
       await batch.commit();
@@ -126,7 +138,7 @@ export function useObservations() {
       void addDoc(collection(db, 'observationUpdates'), {
         observationId: newObsRef.id,
         type: 'comment',
-        text: `إجراء أثناء الجولة: ${actionTaken.trim()}`,
+        text: `إجراء: ${actionTaken.trim()}`,
         createdBy: appUser.id,
         createdByName: appUser.fullName,
         createdAt: serverTimestamp(),
@@ -138,23 +150,37 @@ export function useObservations() {
     return newObsRef.id;
   };
 
-  const resolveObservation = async (obs: Observation, note?: string): Promise<void> => {
+  const resolveObservation = async (
+    obs: Observation,
+    note?: string,
+    activeRoundId?: string | null
+  ): Promise<void> => {
     if (!appUser) throw new Error('سجّل الدخول أولًا.');
     if (obs.status === 'resolved') return;
 
     const batch = writeBatch(db);
-    batch.update(doc(db, 'observations', obs.id), {
+    const updatePayload: Record<string, unknown> = {
       status: 'resolved',
       resolvedBy: appUser.id,
       resolvedByName: appUser.fullName,
       resolvedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    if (activeRoundId) {
+      updatePayload.resolvedDuringRoundId = activeRoundId;
+    }
+
+    batch.update(doc(db, 'observations', obs.id), updatePayload);
+
+    const updateText = activeRoundId
+      ? 'تمت معالجة الملاحظة أثناء الجولة'
+      : (note?.trim() || DEFAULT_RESOLVE_TEXT);
 
     batch.set(doc(collection(db, 'observationUpdates')), {
       observationId: obs.id,
       type: 'resolved',
-      text: note?.trim() || DEFAULT_RESOLVE_TEXT,
+      text: updateText,
       createdBy: appUser.id,
       createdByName: appUser.fullName,
       createdAt: serverTimestamp(),
@@ -185,6 +211,7 @@ export function useObservations() {
       resolvedBy: null,
       resolvedByName: null,
       resolvedAt: null,
+      resolvedDuringRoundId: null,
       updatedAt: serverTimestamp(),
     });
 

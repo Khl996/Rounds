@@ -6,7 +6,7 @@ import { ErrorText, Field, inputClass } from '../../components/ui/Field';
 
 export const AuthView: React.FC = () => {
   const { login, error, clearError } = useAuth();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -16,14 +16,14 @@ export const AuthView: React.FC = () => {
     clearError();
     setLocalError(null);
 
-    if (!email.trim() || !password) {
-      setLocalError('أدخل البريد وكلمة المرور.');
+    if (!identifier.trim() || !password) {
+      setLocalError('أدخل اسم المستخدم وكلمة المرور.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
     } catch {
       // The message is shown from AuthContext.
     } finally {
@@ -44,15 +44,16 @@ export const AuthView: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
-          <Field label="البريد الإلكتروني">
+          <Field label="اسم المستخدم">
             <input
-              type="email"
+              type="text"
               autoComplete="username"
-              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
               dir="ltr"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@hospital.sa"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="مثال: supply أو البريد"
               className={`${inputClass} text-left`}
             />
           </Field>

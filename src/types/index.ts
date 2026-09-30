@@ -1,11 +1,12 @@
 import { Timestamp } from 'firebase/firestore';
 
-export type UserRole = 'admin' | 'supervisor';
+export type UserRole = 'admin' | 'management' | 'supervisor';
 
 export interface AppUser {
   id: string;
   fullName: string;
   email: string;
+  username?: string;
   role: UserRole;
   active: boolean;
   createdAt: Timestamp | Date;
@@ -55,7 +56,8 @@ export type ObservationStatus = 'open' | 'resolved';
 
 export interface Observation {
   id: string;
-  roundId: string;
+  roundId?: string | null;
+  source?: 'round' | 'management';
   orderNumber?: number;
   locationId: string;
   locationName: string;
@@ -67,9 +69,10 @@ export interface Observation {
   createdBy: string;
   createdByName: string;
   createdAt: Timestamp | Date;
-  resolvedBy?: string;
-  resolvedByName?: string;
-  resolvedAt?: Timestamp | Date;
+  resolvedBy?: string | null;
+  resolvedByName?: string | null;
+  resolvedAt?: Timestamp | Date | null;
+  resolvedDuringRoundId?: string | null;
   updatedAt: Timestamp | Date;
 }
 

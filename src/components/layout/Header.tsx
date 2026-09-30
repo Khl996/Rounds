@@ -110,7 +110,13 @@ const AccountMenu: React.FC<{ user: AppUser; onLogout: () => void }> = ({ user, 
             <div className="px-3 py-2">
               <p className="truncate font-medium text-slate-900">{user.fullName}</p>
               <p className="truncate text-sm text-slate-500">
-                {user.role === 'admin' ? 'مدير' : 'مشرف'} · <span dir="ltr">{user.email}</span>
+                {user.role === 'admin' ? 'مدير' : user.role === 'management' ? 'إدارة' : 'مشرف'} ·{' '}
+                <span dir="ltr">
+                  {user.username ||
+                    (user.email.endsWith('@rounds.app')
+                      ? user.email.replace('@rounds.app', '')
+                      : user.email)}
+                </span>
               </p>
             </div>
             <button

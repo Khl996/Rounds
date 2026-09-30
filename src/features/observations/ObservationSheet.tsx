@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Observation, ObservationUpdate } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import { DEFAULT_REOPEN_TEXT, DEFAULT_RESOLVE_TEXT, useObservationUpdates } from '../../hooks/useObservations';
 import { Sheet } from '../../components/ui/Sheet';
 import { Button } from '../../components/ui/Button';
@@ -10,9 +11,10 @@ import { formatWhen } from '../../utils/formatters';
 
 interface ObservationSheetProps {
   observation: Observation;
+  activeRoundId?: string | null;
   onClose: () => void;
   onComment: (text: string) => Promise<void>;
-  onResolve: (note?: string) => Promise<void>;
+  onResolve: (note?: string, activeRoundId?: string | null) => Promise<void>;
   onReopen: (reason?: string) => Promise<void>;
 }
 
@@ -60,18 +62,21 @@ const TITLE: Record<TimelineEntry['tone'], string> = {
 /** "وش صار على هذه الملاحظة؟" — the history is the main content. */
 export const ObservationSheet: React.FC<ObservationSheetProps> = ({
   observation,
+  activeRoundId,
   onClose,
   onComment,
   onResolve,
   onReopen,
 }) => {
   const { updates, error: updatesError } = useObservationUpdates(observation.id);
+  const { appUser } = useAuth();
   const showToast = useToast();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isOpen = observation.status === 'open';
+  const canResolveOrReopen = appUser?.role === 'admin' || appUser?.role === 'supervisor';
 
   const entries: TimelineEntry[] = [
     {
@@ -104,7 +109,7 @@ export const ObservationSheet: React.FC<ObservationSheetProps> = ({
   // A typed note goes with the status change, e.g. "تم تغيير اللمبة" + إغلاق.
   const toggleStatus = () =>
     isOpen
-      ? run(() => onResolve(text.trim() || undefined), 'أُغلقت الملاحظة')
+      ? run(() => onResolve(text.trim() || undefined, activeRoundId), 'أُغلقت الملاحظة')
       : run(() => onReopen(text.trim() || undefined), 'أُعيد فتح الملاحظة');
 
   const addUpdate = (e: React.FormEvent) => {
@@ -140,9 +145,11 @@ export const ObservationSheet: React.FC<ObservationSheetProps> = ({
               إضافة
             </Button>
           </form>
-          <Button variant={isOpen ? 'success' : 'secondary'} size="lg" full disabled={busy} onClick={toggleStatus}>
-            {isOpen ? 'إغلاق الملاحظة' : 'إعادة فتح'}
-          </Button>
+          {canResolveOrReopen && (
+            <Button variant={isOpen ? 'success' : 'secondary'} size="lg" full disabled={busy} onClick={toggleStatus}>
+              {isOpen ? 'إغلاق الملاحظة' : 'إعادة فتح'}
+            </Button>
+          )}
         </div>
       }
     >
